@@ -1,0 +1,63 @@
+name: validate-hotfix-patch
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-hotfix-patch:
+    name: validate-hotfix-patch
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce patch version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.base_ref }}"
+          HEAD="${{ github.head_ref }}"
+
+          if [[ ! "$HEAD" =~ ^hotfix/ ]]; then
+            echo "Not a hotfix branch; skipping."
+            exit 0
+          fi
+
+          if [[ ! "$BASE" =~ ^release/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ hotfix must target release/X.Y.Z"
+            exit 1
+          fi
+
+          TARGET="${BASE#release/}"
+
+          git fetch --tags
+          LATEST="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
+
+          if [[ -z "$LATEST" ]]; then
+            echo "❌ cannot validate hotfix without an existing release tag"
+            exit 1
+          fi
+
+          LATEST="${LATEST#v}"
+
+          IFS='.' read -r A B C <<< "$LATEST"
+          IFS='.' read -r X Y Z <<< "$TARGET"
+
+          if [[ "$A" != "$X" || "$B" != "$Y" ]]; then
+            echo "❌ hotfix release must stay on current major.minor ($A.$B)"
+            exit 1
+          fi
+
+          if [[ "$Z" -ne $((C + 1)) ]]; then
+            echo "❌ hotfix release must increment patch by exactly 1 from $LATEST"
+            exit 1
+          fi
+
+          echo "✅ hotfix patch valid"
