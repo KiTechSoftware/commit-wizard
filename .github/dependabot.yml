@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/workflows"
+    target-branch: "develop"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+
+    open-pull-requests-limit: 10
+
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+    pull-request-branch-name:
+      separator: "-"
+      
+    labels:
+      - "dependencies"
+      - "rust"
+
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+    ignore:
+      # optional: ignore noisy crates if needed later
+      # - dependency-name: "some-crate"
+      #   versions: ["*"]
+
+    versioning-strategy: increase

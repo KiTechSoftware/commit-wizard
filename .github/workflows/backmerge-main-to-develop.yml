@@ -1,0 +1,39 @@
+name: backmerge-main-to-develop
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  backmerge:
+    name: backmerge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create PR main -> develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          EXISTING="$(gh pr list \
+            --base develop \
+            --head main \
+            --state open \
+            --json number \
+            --jq '.[0].number')"
+
+          if [[ -n "$EXISTING" && "$EXISTING" != "null" ]]; then
+            echo "Open back-merge PR already exists: #$EXISTING"
+            exit 0
+          fi
+
+          gh pr create \
+            --base develop \
+            --head main \
+            --title "chore: back-merge main into develop" \
+            --body "Automated back-merge after release"
