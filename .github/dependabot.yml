@@ -19,7 +19,7 @@ updates:
 
     pull-request-branch-name:
       separator: "-"
-      
+
     labels:
       - "dependencies"
       - "rust"
@@ -33,9 +33,4 @@ updates:
       - dependency-type: "direct"
       - dependency-type: "indirect"
 
-    ignore:
-      # optional: ignore noisy crates if needed later
-      # - dependency-name: "some-crate"
-      #   versions: ["*"]
-
-    versioning-strategy: increase
+    versioning-strategy: "auto"
