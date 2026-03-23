@@ -1,0 +1,42 @@
+[tools]
+rust = "stable"
+lefthook = "latest"
+
+[tasks.build]
+run = "./scripts/cw-build.sh"
+
+[tasks.run]
+run = "./scripts/cw-run.sh"
+
+[tasks.lint]
+run = "./scripts/cw-lint.sh"
+
+[tasks.fmt]
+run = "./scripts/cw-fmt.sh"
+
+[tasks.clean]
+run = "./scripts/cw-clean.sh"
+
+[tasks.check-license]
+run = "./scripts/cw-license.sh"
+
+[tasks.test]
+run = "./scripts/cw-test.sh"
+
+[tasks.test-coverage]
+run = "./scripts/cw-test-coverage.sh"
+
+[tasks.image-run]
+run = "./scripts/cw-image-run.sh"
+
+[tasks.docs-build]
+run = "./scripts/docs-build.sh"
+
+[tasks.docs-serve]
+run = "./scripts/docs-serve.sh"
+
+[tasks.ci-check]
+run = "./scripts/ci-check.sh"
+
+[tasks.setup]
+run = "./scripts/setup.sh"

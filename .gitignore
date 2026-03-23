@@ -1,0 +1,63 @@
+# ======================
+# Rust & Cargo
+# ======================
+debug/
+target/
+
+# Backup files from rustfmt
+**/*.rs.bk
+
+# MSVC PDB files
+*.pdb
+
+# Cargo mutants output
+**/mutants.out*/
+
+# ======================
+# IDEs & Editors
+# ======================
+.idea/
+.vscode/
+.DS_Store
+
+# ======================
+# GitHub Actions / CI
+# ======================
+dist/
+*.zip
+coverage/
+tmp/
+logs/
+
+# ======================
+# Docker
+# ======================
+docker/*-cache/
+docker/tmp/
+
+# ======================
+# MkDocs / Documentation
+# ======================
+site/
+docs/.cache/
+docs/__pycache__/
+*.log
+
+# ======================
+# Python (for mkdocs/requirements.txt)
+# ======================
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ======================
+# Environment variables
+# ======================
+.env/
+
+# ======================
+# Project-specific ignores
+# ======================
+.cwizard.toml
+.cw-fix.json

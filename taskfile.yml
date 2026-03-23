@@ -1,0 +1,54 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - ./scripts/cw-build.sh
+
+  run:
+    cmds:
+      - ./scripts/cw-run.sh {{.CLI_ARGS}}
+
+  test:
+    cmds:
+      - ./scripts/cw-test.sh
+
+  test-coverage:
+    cmds:
+      - ./scripts/cw-test-coverage.sh
+
+  lint:
+    cmds:
+      - ./scripts/cw-lint.sh
+
+  fmt:
+    cmds:
+      - ./scripts/cw-fmt.sh
+
+  clean:
+    cmds:
+      - ./scripts/cw-clean.sh
+
+  check-license:
+    cmds:
+      - ./scripts/cw-license.sh
+
+  image-run:
+    cmds:
+      - ./scripts/cw-image-run.sh {{.CLI_ARGS}}
+
+  docs-build:
+    cmds:
+      - ./scripts/docs-build.sh
+
+  docs-serve:
+    cmds:
+      - ./scripts/docs-serve.sh
+
+  ci-check:
+    cmds:
+      - ./scripts/ci-check.sh
+
+  setup:
+    cmds:
+      - ./scripts/setup.sh
