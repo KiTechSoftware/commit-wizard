@@ -1,0 +1,17 @@
+[package]
+name = "commit-wizard"
+description = "A lightweight CLI assistant for Conventional Commits, semantic versioning, and changelog automation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository = "https://github.com/kitechsoftware/commit-wizard"
+homepage = "https://commit-wizard.kitechsoftware.com"
+documentation = "https://docs.rs/commit-wizard"
+keywords = ["cli", "conventional-commits"]
+categories = ["command-line-utilities"]
+publish = true
+
+[[bin]]
+name = "cw"
+path = "src/main.rs"
