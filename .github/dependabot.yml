@@ -2,7 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: "cargo"
-    directory: "/workflows"
+    directory: "/workspace"
     target-branch: "develop"
 
     schedule:
