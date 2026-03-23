@@ -20,6 +20,8 @@ jobs:
           script: |
             const base = context.payload.pull_request.base.ref;
             const head = context.payload.pull_request.head.ref;
+            const prTitle = context.payload.pull_request.title;
+
             const semver = /^\d+\.\d+\.\d+$/;
             const cc = /^(feat|fix|refactor|chore|docs|test|ci|build|revert)(\([^)]+\))?!?: .+(\n\n.*)?\n?$/s;
             const isDependabot = /^dependabot\//.test(head);
@@ -29,29 +31,32 @@ jobs:
 
             const failures = [];
 
-            const prTitle = context.payload.pull_request.title;
+            // Always require PR title to follow Conventional Commits
             if (!cc.test(prTitle)) {
               failures.push(
                 `PR title must match Conventional Commits.\nGot: ${prTitle}`
               );
             }
 
-            const commits = await github.paginate(
-              github.rest.pulls.listCommits,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.payload.pull_request.number,
-                per_page: 100,
-              }
-            );
+            // Only enforce commit messages when merging into main
+            if (base === "main") {
+              const commits = await github.paginate(
+                github.rest.pulls.listCommits,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  per_page: 100,
+                }
+              );
 
-            for (const commit of commits) {
-              const msg = commit.commit.message;
-              if (!cc.test(msg)) {
-                failures.push(
-                  `Commit ${commit.sha.slice(0, 7)} has an invalid message:\n${msg}`
-                );
+              for (const commit of commits) {
+                const msg = commit.commit.message;
+                if (!cc.test(msg)) {
+                  failures.push(
+                    `Commit ${commit.sha.slice(0, 7)} has an invalid message:\n${msg}`
+                  );
+                }
               }
             }
 
