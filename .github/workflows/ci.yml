@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workflows
+        working-directory: workspace
 
     steps:
       - name: Checkout
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workflows
+        working-directory: workspace
 
     steps:
       - name: Checkout
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workflows
+        working-directory: workspace
 
     steps:
       - name: Checkout
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workflows
+        working-directory: workspace
 
     steps:
       - name: Checkout
@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workflows
+        working-directory: workspace
 
     steps:
       - name: Checkout
