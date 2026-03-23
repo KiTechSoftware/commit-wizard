@@ -1,0 +1,17 @@
+site_name: Commit Wizard
+site_url: https://commit-wizard.kitechsoftware.com/
+repo_url: https://github.com/kitechsoftware/commit-wizard
+repo_name: kitechsoftware/commit-wizard
+
+docs_dir: pages
+
+theme:
+  name: dracula
+  logo: assets/img/icon.png
+  favicon: assets/img/icon.png
+  highlight_js: highlight.min.js
+  highlight_css: atom-one-dark.min.css
+
+nav:
+  - Home: index.md
+
