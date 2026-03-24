@@ -21,8 +21,8 @@ fmt:
 clean:
     ./scripts/cw-clean.sh
 
-check-license:
-    ./scripts/cw-license.sh
+deny:
+    ./scripts/cw-deny.sh
 
 image-run *args:
     ./scripts/cw-image-run.sh {{args}}
@@ -37,4 +37,7 @@ ci-check:
     ./scripts/ci-check.sh
 
 setup:
-    ./scripts/setup.sh
+    ./scripts/dev-setup.sh
+
+git-sync:
+    ./scripts/dev-git-sync.sh --local

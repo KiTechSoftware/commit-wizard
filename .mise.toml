@@ -17,8 +17,8 @@ run = "./scripts/cw-fmt.sh"
 [tasks.clean]
 run = "./scripts/cw-clean.sh"
 
-[tasks.check-license]
-run = "./scripts/cw-license.sh"
+[tasks.deny]
+run = "./scripts/cw-deny.sh"
 
 [tasks.test]
 run = "./scripts/cw-test.sh"
@@ -39,4 +39,7 @@ run = "./scripts/docs-serve.sh"
 run = "./scripts/ci-check.sh"
 
 [tasks.setup]
-run = "./scripts/setup.sh"
+run = "./scripts/dev-setup.sh"
+
+[tasks.git-sync]
+run = "./scripts/dev-git-sync.sh --local"

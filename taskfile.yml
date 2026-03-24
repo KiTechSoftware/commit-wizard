@@ -29,9 +29,9 @@ tasks:
     cmds:
       - ./scripts/cw-clean.sh
 
-  check-license:
+  deny:
     cmds:
-      - ./scripts/cw-license.sh
+      - ./scripts/cw-deny.sh
 
   image-run:
     cmds:
@@ -51,4 +51,8 @@ tasks:
 
   setup:
     cmds:
-      - ./scripts/setup.sh
+      - ./scripts/dev-setup.sh
+  
+  git-sync:
+    cmds:
+      - ./scripts/dev-git-sync.sh --local
