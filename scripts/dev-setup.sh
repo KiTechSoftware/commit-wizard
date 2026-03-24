@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo ">> ensuring rustfmt, clippy, llvm-tools-preview"
-rustup component add rustfmt clippy llvm-tools-preview
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/libs/common.sh
+source "${SCRIPT_DIR}/libs/common.sh"
 
-if ! command -v cargo-llvm-cov >/dev/null 2>&1; then
-  echo ">> installing cargo-llvm-cov"
-  cargo install cargo-llvm-cov --locked
-else
-  echo ">> cargo-llvm-cov already installed"
-fi
+os_distro="$(detect_os)"
+os="${os_distro%%|*}"
+pkg_mgr="$(detect_pkg_mgr "$os")"
 
-echo "✅ dev setup complete"
+ensure_dev_tools "$pkg_mgr"
+
+install_container_engine "$os" "$pkg_mgr"
+install_optional_tools
+
