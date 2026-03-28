@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   validate:
-    uses: KiTechSoftware/stability-flow/workflows/validate-pr.yml@main
+    uses: KiTechSoftware/stability-flow/.github/workflows/validate-pr.yml@main
     with:
       source: ${{ github.head_ref }}
       target: ${{ github.base_ref }}
