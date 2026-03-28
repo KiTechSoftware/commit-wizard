@@ -6,92 +6,12 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
-  validate-pr-flow:
-    name: validate-pr-flow
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Validate PR title, commit messages, and branch flow
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const base = context.payload.pull_request.base.ref;
-            const head = context.payload.pull_request.head.ref;
-            const prTitle = context.payload.pull_request.title;
-
-            const semver = /^\d+\.\d+\.\d+$/;
-            const cc = /^(feat|fix|refactor|chore|docs|test|ci|build|revert)(\([^)]+\))?!?: .+(\n\n.*)?\n?$/s;
-            const isDependabot = /^dependabot\//.test(head);
-
-            core.info(`Base: ${base}`);
-            core.info(`Head: ${head}`);
-
-            const failures = [];
-
-            // Always require PR title to follow Conventional Commits
-            if (!cc.test(prTitle)) {
-              failures.push(
-                `PR title must match Conventional Commits.\nGot: ${prTitle}`
-              );
-            }
-
-            // Only enforce commit messages when merging into main
-            if (base === "main") {
-              const commits = await github.paginate(
-                github.rest.pulls.listCommits,
-                {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: context.payload.pull_request.number,
-                  per_page: 100,
-                }
-              );
-
-              for (const commit of commits) {
-                const msg = commit.commit.message;
-                if (!cc.test(msg)) {
-                  failures.push(
-                    `Commit ${commit.sha.slice(0, 7)} has an invalid message:\n${msg}`
-                  );
-                }
-              }
-            }
-
-            if (base === "main") {
-              const valid =
-                head.startsWith("release/") &&
-                semver.test(head.slice("release/".length));
-
-              if (!valid) {
-                failures.push("main only accepts release/X.Y.Z");
-              }
-            }
-
-            if (base === "develop") {
-              const valid =
-                head === "main" ||
-                isDependabot ||
-                /^(feat|fix|refactor|chore|docs|ci|wip)\//.test(head);
-
-              if (!valid) {
-                failures.push(
-                  "develop only accepts main, dependabot/*, or (feat|fix|refactor|chore|docs|ci|wip)/*"
-                );
-              }
-            }
-
-            if (/^hotfix\//.test(head)) {
-              if (
-                !base.startsWith("release/") ||
-                !semver.test(base.slice("release/".length))
-              ) {
-                failures.push("hotfix/* must target release/X.Y.Z");
-              }
-            }
-
-            if (failures.length) {
-              core.setFailed(failures.join("\n\n---\n\n"));
-            }
+  validate:
+    uses: KiTechSoftware/stability-flow/workflows/validate-pr.yml@main
+    with:
+      source: ${{ github.head_ref }}
+      target: ${{ github.base_ref }}
+      title: ${{ github.event.pull_request.title }}
+      format: text
