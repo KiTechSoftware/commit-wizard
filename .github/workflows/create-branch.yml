@@ -13,8 +13,8 @@ on:
           - hotfix
           - sync
       source_branch:
-        description: Source branch to branch from
-        required: true
+        description: Source branch to branch from (release only)
+        required: false
         default: develop
         type: string
       identifier:
@@ -32,31 +32,38 @@ permissions:
 
 jobs:
   next-version:
-    if: ${{ inputs.auto_version_bump && inputs.branch_type != 'sync' }}
+    if: ${{ inputs.branch_type != 'hotfix' }}
     uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
     with:
-      mode: ${{ inputs.branch_type }}
+      mode: release
+
+  next-version-hotfix:
+    if: ${{ inputs.branch_type == 'hotfix' }}
+    uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
+    with:
+      mode: hotfix
 
   create-release-branch:
     if: ${{ inputs.branch_type == 'release' }}
     needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-release-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
       source_branch: ${{ inputs.source_branch }}
+      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-release.outputs.next_version }}
       push_branch: true
 
   create-hotfix-branch:
-    if: ${{ inputs.branch_type == 'hotfix' }}
-    needs: [next-version]
+    if: ${{ inputs.branch_type == 'hotfix' && inputs.auto_version_bump }}
+    needs: [next-version-hotfix]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-hotfix-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
+      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-hotfix.outputs.next_version }}
       push_branch: true
 
   create-sync-branch:
     if: ${{ inputs.branch_type == 'sync' }}
+    needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-sync-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier }}
+      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-release.outputs.current_version }}
       push_branch: true
