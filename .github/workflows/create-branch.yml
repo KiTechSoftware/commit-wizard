@@ -1,0 +1,62 @@
+name: Stability Flow Create Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_type:
+        description: Branch to create
+        required: true
+        default: release
+        type: choice
+        options:
+          - release
+          - hotfix
+          - sync
+      source_branch:
+        description: Source branch to branch from
+        required: true
+        default: develop
+        type: string
+      identifier:
+        description: Version or suffix
+        required: false
+        type: string
+      auto_version_bump:
+        description: Calculate version automatically
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  next-version:
+    if: ${{ inputs.auto_version_bump && inputs.branch_type != 'sync' }}
+    uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
+    with:
+      mode: ${{ inputs.branch_type }}
+
+  create-release-branch:
+    if: ${{ inputs.branch_type == 'release' }}
+    needs: [next-version]
+    uses: KiTechSoftware/stability-flow/.github/workflows/create-release-branch.yml@main
+    with:
+      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
+      source_branch: ${{ inputs.source_branch }}
+      push_branch: true
+
+  create-hotfix-branch:
+    if: ${{ inputs.branch_type == 'hotfix' }}
+    needs: [next-version]
+    uses: KiTechSoftware/stability-flow/.github/workflows/create-hotfix-branch.yml@main
+    with:
+      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
+      push_branch: true
+
+  create-sync-branch:
+    if: ${{ inputs.branch_type == 'sync' }}
+    uses: KiTechSoftware/stability-flow/.github/workflows/create-sync-branch.yml@main
+    with:
+      identifier: ${{ inputs.identifier }}
+      push_branch: true
