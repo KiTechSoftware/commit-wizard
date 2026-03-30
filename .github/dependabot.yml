@@ -11,7 +11,7 @@ updates:
       time: "06:00"
       timezone: "UTC"
 
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
 
     commit-message:
       prefix: "chore(deps)"
@@ -25,12 +25,55 @@ updates:
       - "rust"
 
     groups:
-      rust-dependencies:
-        patterns:
-          - "*"
-
-    allow:
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
+      cargo-direct:
+        dependency-type: "direct"
+      cargo-indirect:
+        dependency-type: "indirect"
 
     versioning-strategy: "auto"
+
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    target-branch: "develop"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+
+    open-pull-requests-limit: 1
+
+    commit-message:
+      prefix: "chore(build)"
+      include: "scope"
+
+    pull-request-branch-name:
+      separator: "-"
+
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+
+    open-pull-requests-limit: 1
+
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+
+    pull-request-branch-name:
+      separator: "-"
+
+    labels:
+      - "dependencies"
+      - "ci"
