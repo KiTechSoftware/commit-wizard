@@ -20,7 +20,6 @@ permissions:
 
 jobs:
   pr-to-main:
-    name: stability-flow/pr-to-main
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     uses: KiTechSoftware/stability-flow/.github/workflows/pr-to-main.yml@main
     with:
@@ -31,7 +30,6 @@ jobs:
       github-summary: true
 
   pr-to-develop:
-    name: stability-flow/pr-to-develop
     if: github.event_name == 'pull_request' && github.base_ref == 'develop'
     uses: KiTechSoftware/stability-flow/.github/workflows/pr-to-develop.yml@main
     with:
@@ -42,7 +40,6 @@ jobs:
       github-summary: true
 
   release-branch:
-    name: stability-flow/release-branch
     if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
     uses: KiTechSoftware/stability-flow/.github/workflows/release-branch.yml@main
     with:
@@ -52,7 +49,6 @@ jobs:
       github-summary: true
 
   hotfix-branch:
-    name: stability-flow/hotfix-branch
     if: github.event_name == 'push' && startsWith(github.ref_name, 'hotfix/')
     uses: KiTechSoftware/stability-flow/.github/workflows/hotfix-branch.yml@main
     with:
@@ -62,7 +58,6 @@ jobs:
       github-summary: true
 
   sync-branch:
-    name: stability-flow/sync-branch
     if: github.event_name == 'push' && startsWith(github.ref_name, 'sync/')
     uses: KiTechSoftware/stability-flow/.github/workflows/sync-branch.yml@main
     with:
@@ -72,7 +67,6 @@ jobs:
       github-summary: true
 
   wip-branch:
-    name: stability-flow/wip-branch
     if: github.event_name == 'push' && startsWith(github.ref_name, 'wip/')
     uses: KiTechSoftware/stability-flow/.github/workflows/wip-branch.yml@main
     with:
