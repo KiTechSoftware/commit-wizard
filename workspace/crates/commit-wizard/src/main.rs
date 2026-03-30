@@ -1,3 +1,6 @@
-fn main() {
-    println!("Hello World, I'm Commit Wizard")
+use anyhow::Result;
+use commit_wizard::run_cli;
+
+fn main() -> Result<()> {
+    run_cli()
 }
