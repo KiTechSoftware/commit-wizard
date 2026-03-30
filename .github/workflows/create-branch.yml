@@ -54,18 +54,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_branch: ${{ steps.resolve.outputs.source_branch }}
-      pr_base: ${{ steps.resolve.outputs.pr_base }}
     steps:
       - id: resolve
         shell: bash
         run: |
           if [[ ${{ inputs.planned_release }} == true ]]; then
             echo "source_branch=develop" >> "$GITHUB_OUTPUT"
-            echo "pr_base=main" >> "$GITHUB_OUTPUT"
-            else
-            HOTFIX_BRANCH="hotfix/${{ needs.next-version.outputs.next_version }}"
-            echo "source_branch=${HOTFIX_BRANCH}" >> "$GITHUB_OUTPUT"
-            echo "pr_base=${HOTFIX_BRANCH}" >> "$GITHUB_OUTPUT"
+          else
+            echo "source_branch=hotfix/${{ needs.next-version.outputs.next_version }}" >> "$GITHUB_OUTPUT"
           fi
 
   create-release-branch:
@@ -110,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create \
-            --base "${{ needs.resolve-release-source.outputs.pr_base }}" \
+            --base main \
             --head "${{ needs.create-release-branch.outputs.branch }}" \
             --title "chore: Release ${{ needs.next-version.outputs.next_version }}" \
             --body "Automated release PR."
