@@ -12,17 +12,8 @@ on:
           - release
           - hotfix
           - sync
-      source_branch:
-        description: Source branch to branch from (release only)
-        required: false
-        default: develop
-        type: string
-      identifier:
-        description: Version or suffix
-        required: false
-        type: string
-      auto_version_bump:
-        description: Calculate version automatically
+      planned_release:
+        description: Whether this is a planned release (only applies to release branches)
         required: true
         default: true
         type: boolean
@@ -31,33 +22,54 @@ permissions:
   contents: write
 
 jobs:
+  resolve-version-mode:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.resolve.outputs.mode }}
+    steps:
+      - id: resolve
+        run: |
+          if [[ "${{ inputs.branch_type }}" == "hotfix" ]]; then
+            echo "mode=hotfix" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+          fi
+
   next-version:
-    if: ${{ inputs.branch_type != 'hotfix' }}
+    needs: [resolve-version-mode]
     uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
     with:
-      mode: release
+      mode: ${{ needs.resolve-version-mode.outputs.mode }}
 
-  next-version-hotfix:
-    if: ${{ inputs.branch_type == 'hotfix' }}
-    uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
-    with:
-      mode: hotfix
-
+  resolve-release-source:
+        if: ${{ inputs.branch_type == 'release' }}
+        needs: [next-version]
+        runs-on: ubuntu-latest
+        outputs:
+          source_branch: ${{ steps.resolve.outputs.source_branch }}
+        steps:
+          - id: resolve
+            run: |
+              if [[ "${{ inputs.planned_release }}" == "true" ]]; then
+                echo "source_branch=develop" >> "$GITHUB_OUTPUT"
+              else
+                echo "source_branch=hotfix/${{ needs.next-version.outputs.next_version }}" >> "$GITHUB_OUTPUT"
+              fi
   create-release-branch:
     if: ${{ inputs.branch_type == 'release' }}
-    needs: [next-version]
+    needs: [next-version, resolve-release-source]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-release-branch.yml@main
     with:
-      source_branch: ${{ inputs.source_branch }}
-      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-release.outputs.next_version }}
+      source_branch: ${{ needs.resolve-release-source.outputs.source_branch }}
+      identifier: ${{ needs.next-version.outputs.next_version }}
       push_branch: true
 
   create-hotfix-branch:
-    if: ${{ inputs.branch_type == 'hotfix' && inputs.auto_version_bump }}
-    needs: [next-version-hotfix]
+    if: ${{ inputs.branch_type == 'hotfix' }}
+    needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-hotfix-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-hotfix.outputs.next_version }}
+      identifier: ${{ needs.next-version.outputs.next_version }}
       push_branch: true
 
   create-sync-branch:
@@ -65,5 +77,5 @@ jobs:
     needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-sync-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier != '' && inputs.identifier || needs.next-version-release.outputs.current_version }}
+      identifier: ${{ needs.next-version.outputs.current_version }}
       push_branch: true
