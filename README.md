@@ -1,10 +1,14 @@
-# Commit Wizard (`cw`)
+# 🧙‍♂️ Commit Wizard (`cw`)
 
 A spellbook for your commits.
 
 > A lightweight CLI assistant for **Conventional Commits**, semantic versioning, and changelog automation.
 
 `cw` helps developers write structured commits, validate history, generate changelogs, and manage version tags with minimal effort.
+
+For the user manual please vist: [Docs](https://commit-wizard.kitechsoftware.com)
+
+---
 
 ## ✨ Planned Features
 
