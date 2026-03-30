@@ -1,4 +1,4 @@
-name: Stability Flow Create Branch
+name: Create Branch (release/hotfix/sync)
 
 on:
   workflow_dispatch:
