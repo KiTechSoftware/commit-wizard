@@ -4,4 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-cargo test --manifest-path "${REPO_ROOT}/workspace/Cargo.toml" --workspace --all-features
+(
+  cd "${REPO_ROOT}/workspace"
+  cargo test --workspace --all-features
+)
