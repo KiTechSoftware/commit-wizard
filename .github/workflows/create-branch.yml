@@ -1,4 +1,4 @@
-name: Stability Flow Create Branch
+name: Create Branch (release/hotfix/sync)
 
 on:
   workflow_dispatch:
@@ -12,38 +12,65 @@ on:
           - release
           - hotfix
           - sync
-      source_branch:
-        description: Source branch to branch from
+      planned_release:
+        description: Whether this is a planned release (only applies to release branches)
         required: true
-        default: develop
-        type: string
-      identifier:
-        description: Version or suffix
-        required: false
-        type: string
-      auto_version_bump:
-        description: Calculate version automatically
+        default: true
+        type: boolean
+      create_pr:
+        description: Whether to create a PR (only applies to release and sync branches)
         required: true
         default: true
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: write
 
 jobs:
+  resolve-version-mode:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.resolve.outputs.mode }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          if [[ "${{ inputs.branch_type }}" == "hotfix" ]]; then
+            echo "mode=hotfix" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+          fi
+
   next-version:
-    if: ${{ inputs.auto_version_bump && inputs.branch_type != 'sync' }}
+    needs: [resolve-version-mode]
     uses: KiTechSoftware/stability-flow/.github/workflows/next-version.yml@main
     with:
-      mode: ${{ inputs.branch_type }}
+      mode: ${{ needs.resolve-version-mode.outputs.mode }}
+
+  resolve-release-source:
+    if: ${{ inputs.branch_type == 'release' }}
+    needs: [next-version]
+    runs-on: ubuntu-latest
+    outputs:
+      source_branch: ${{ steps.resolve.outputs.source_branch }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          if [[ ${{ inputs.planned_release }} == true ]]; then
+            echo "source_branch=develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "source_branch=hotfix/${{ needs.next-version.outputs.next_version }}" >> "$GITHUB_OUTPUT"
+          fi
 
   create-release-branch:
     if: ${{ inputs.branch_type == 'release' }}
-    needs: [next-version]
+    needs: [next-version, resolve-release-source]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-release-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
-      source_branch: ${{ inputs.source_branch }}
+      source_branch: ${{ needs.resolve-release-source.outputs.source_branch }}
+      identifier: ${{ needs.next-version.outputs.next_version }}
       push_branch: true
 
   create-hotfix-branch:
@@ -51,12 +78,58 @@ jobs:
     needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-hotfix-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier || needs.next-version.outputs.version }}
+      identifier: ${{ needs.next-version.outputs.next_version }}
       push_branch: true
 
   create-sync-branch:
     if: ${{ inputs.branch_type == 'sync' }}
+    needs: [next-version]
     uses: KiTechSoftware/stability-flow/.github/workflows/create-sync-branch.yml@main
     with:
-      identifier: ${{ inputs.identifier }}
+      identifier: ${{ needs.next-version.outputs.current_version }}
       push_branch: true
+
+  create-release-pr:
+    if: ${{ inputs.branch_type == 'release' && inputs.create_pr }}
+    needs: [next-version, resolve-release-source, create-release-branch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "${{ needs.create-release-branch.outputs.branch }}" \
+            --title "chore: Release ${{ needs.next-version.outputs.next_version }}" \
+            --body "Automated release PR."
+
+  create-sync-pr:
+    if: ${{ inputs.branch_type == 'sync' && inputs.create_pr }}
+    needs: [next-version, create-sync-branch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+        
+      - name: Create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base develop \
+            --head "${{ needs.create-sync-branch.outputs.branch }}" \
+            --title "chore: Sync ${{ needs.next-version.outputs.current_version }}" \
+            --body "Automated sync PR."
