@@ -1,7 +1,7 @@
 .PHONY: \
 	build run test lint fmt clean check-license test-coverage image-run \
 	docs-build docs-serve \
-	ci-check dev-setup setup
+	ci-check dev-setup setup crate-check
 
 build:
 	./scripts/cw-build.sh
@@ -41,3 +41,6 @@ ci-check:
 
 setup:
 	./scripts/setup.sh
+
+crate-check:
+	./scripts/crate-release-check.sh

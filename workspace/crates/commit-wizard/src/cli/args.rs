@@ -1,8 +1,15 @@
+//! Command-line argument definitions and parsing.
+//!
+//! This module defines the CLI argument structure using `clap`, including global flags,
+//! subcommands, and command-specific options. All arguments are converted to [`AppContextArgs`]
+//! for use by the application bootstrap process.
+
 use std::path::PathBuf;
 
 use crate::{cli::cmd, core::bootstrap::AppContextArgs};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
+/// Output format enumeration for results
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum FormatArg {
     Auto,

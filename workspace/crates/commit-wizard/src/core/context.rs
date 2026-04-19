@@ -1,3 +1,8 @@
+//! Core application context and state management.
+//!
+//! The [`Context`] struct holds the application state including runtime configuration,
+//! mode settings, and provides methods to access capabilities and perform operations.
+
 use std::path::PathBuf;
 
 use crate::{

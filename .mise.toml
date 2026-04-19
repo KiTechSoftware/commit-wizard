@@ -40,3 +40,6 @@ run = "./scripts/ci-check.sh"
 
 [tasks.setup]
 run = "./scripts/setup.sh"
+
+[tasks.crate-check]
+run = "./scripts/crate-release-check.sh"
