@@ -52,3 +52,7 @@ tasks:
   setup:
     cmds:
       - ./scripts/setup.sh
+
+  crate-check:
+    cmds:
+      - ./scripts/crate-release-check.sh

@@ -1,7 +1,14 @@
+//! Git operation traits for abstraction and testing.
+//!
+//! This module defines traits for Git operations, allowing the core business logic to remain
+//! independent of Git implementation details. Concrete implementations are provided by
+//! [`crate::infra::git`].
+
 use std::path::Path;
 
 use crate::core::Result;
 
+/// Checks for Git CLI availability and repository state
 pub trait GitCliTrait {
     fn is_installed(&self) -> Result<bool>;
     fn is_inside_work_tree(&self) -> Result<bool>;

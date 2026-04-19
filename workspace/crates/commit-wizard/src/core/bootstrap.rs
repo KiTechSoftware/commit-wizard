@@ -1,3 +1,8 @@
+//! Application initialization and context building.
+//!
+//! This module handles the bootstrap process: converting CLI arguments into the application
+//! [`Context`], resolving configuration, and initializing runtime state.
+
 use std::path::PathBuf;
 
 use crate::{

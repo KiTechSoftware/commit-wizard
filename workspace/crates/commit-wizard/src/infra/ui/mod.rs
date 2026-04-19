@@ -1,3 +1,12 @@
+//! User interface implementation for output and prompting.
+//!
+//! This module provides concrete implementations of the UI traits defined in
+//! [`crate::engine::traits`]. It uses the `scriba` library for formatting and output,
+//! with support for multiple output formats (text, JSON, markdown, etc.).
+//!
+//! The main entry point is the [`Ui`] struct which handles output and prompting,
+//! with a thread-local cache for efficiency.
+
 use std::cell::RefCell;
 use std::io::{self, Write};
 mod logger;

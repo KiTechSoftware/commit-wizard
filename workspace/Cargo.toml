@@ -9,6 +9,7 @@ edition = "2024"
 version = "0.0.2"
 license = "MIT OR Apache-2.0"
 authors = ["KiTech Software <oss@kitechsoftware.com>"]
+readme = "../README.md"
 
 [workspace.dependencies]
 commit-wizard = { path = "crates/commit-wizard" }

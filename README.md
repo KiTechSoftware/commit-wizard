@@ -1,4 +1,4 @@
-# 🧙‍♂️ Commit Wizard (`cw`)
+# <img src="https://commit-wizard.kitechsoftware.com/assets/img/icon.png" alt="Commit Wizard Icon" width="50" align="left"/> Commit Wizard (`cw`)
 
 A spellbook for your commits.
 
@@ -6,11 +6,11 @@ A spellbook for your commits.
 
 `cw` helps developers write structured commits, validate history, generate changelogs, and manage version tags with minimal effort.
 
-For the user manual please vist: [Docs](https://commit-wizard.kitechsoftware.com)
-
----
+For the user manual please visit: [Docs](https://commit-wizard.kitechsoftware.com)
 
 ## ✨ Planned Features
+
+<img src="https://commit-wizard.kitechsoftware.com/assets/img/mascot.png" alt="Commit Wizard Mascot" width="200" align="right" />
 
 - ✅ **Interactive commit prompt** (with scope/type validation)
 - 🧪 **Commit range validation** against Conventional Commit rules
@@ -22,3 +22,5 @@ For the user manual please vist: [Docs](https://commit-wizard.kitechsoftware.com
 - ⚙️ **Custom config** via `.cwizard.toml` or `cwizard.toml`
 - 🚀 **CI-friendly modes** (`--ci`, `--dry-run`, etc.)
 - 📦 **Docker image** for easy installation and usage
+
+> **Note.** Project is still a work in progress, please do not seriously use until `v1.0.0`

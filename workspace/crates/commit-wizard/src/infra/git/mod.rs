@@ -1,3 +1,10 @@
+//! Git repository implementation.
+//!
+//! This module provides concrete implementations of Git operation traits.
+//! It uses both the `git2` library and Git CLI for operations.
+//!
+//! The main entry point is the [`Git`] struct which implements all Git operation traits.
+
 use std::{
     collections::{BTreeMap, HashMap},
     io::Write as _,
