@@ -38,3 +38,6 @@ ci-check:
 
 setup:
     ./scripts/setup.sh
+
+crate-check:
+    ./scripts/crate-release-check.sh

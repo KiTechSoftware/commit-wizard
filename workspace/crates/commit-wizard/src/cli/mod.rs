@@ -1,3 +1,25 @@
+//! Command-line interface for Commit Wizard.
+//!
+//! This module provides the CLI implementation, including command parsing, execution,
+//! and error handling. The main entry point is the [`run()`] function which orchestrates
+//! the entire CLI flow.
+//!
+//! ## Submodules
+//!
+//! - [`args`]: Command-line argument definitions and parsing
+//! - [`cmd`]: Executable commands (commit, check, tag, bump, etc.)
+//!
+//! ## Example
+//!
+//! The typical entry point for a binary using this crate:
+//!
+//! ```ignore
+//! use commit_wizard::cli::run;
+//! fn main() {
+//!     std::process::exit(run().into());
+//! }
+//! ```
+
 pub mod args;
 pub mod cmd;
 

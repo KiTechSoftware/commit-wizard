@@ -8,6 +8,7 @@ authors.workspace = true
 repository = "https://github.com/kitechsoftware/commit-wizard"
 homepage = "https://commit-wizard.kitechsoftware.com"
 documentation = "https://docs.rs/commit-wizard"
+readme.workspace = true
 keywords = ["cli", "conventional-commits"]
 categories = ["command-line-utilities"]
 publish = true
