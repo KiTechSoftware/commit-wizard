@@ -1,40 +1,51 @@
-pub mod adapters;
-pub mod application;
 pub mod cli;
-pub mod domain;
-pub mod ports;
+pub mod core;
+pub mod engine;
+pub mod infra;
 
-use anyhow::Result;
-use clap::Parser;
-
-use cli::{Cli, Command};
-
-use adapters::git::{cmd::CmdGit, noop::NoopGit};
-use adapters::prompt::tty::TtyPrompt;
-use application::usecases::CreateCommit;
-use ports::git::CommitOptions;
-
-fn run_commit(allow_empty: bool, dry_run: bool) -> Result<()> {
-    let opts = CommitOptions { allow_empty };
-
-    // pick adapter based on global dry-run
-    let git: Box<dyn ports::git::GitPort> = if dry_run {
-        Box::new(NoopGit::default())
-    } else {
-        Box::new(CmdGit::default())
+/// A macro to create a vector of strings from a list of string literals.
+#[macro_export]
+macro_rules! strings {
+    ($($s:expr),* $(,)?) => {
+        vec![$($s.to_string()),*]
     };
-
-    let uc = CreateCommit::new(TtyPrompt::default(), git);
-    uc.run(&opts)
 }
 
-pub fn run_cli() -> Result<()> {
-    let cli = Cli::parse();
-    let dry_run = cli.global.dry_run;
+#[macro_export]
+macro_rules! string_vec_map {
+    (
+        $(
+            $key:expr => [$($val:expr),* $(,)?]
+        ),* $(,)?
+    ) => {{
+        let mut map = std::collections::BTreeMap::new();
+        $(
+            let vec = vec![$($val.to_string()),*];
+            map.insert($key.to_string(), vec);
+        )*
+        map
+    }};
+}
 
-    match cli.command {
-        Command::Commit { allow_empty } => run_commit(allow_empty, dry_run)?,
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn strings_macro_works_as_expected() {
+        let result = strings!["hello", "world", "123"];
+        let expected = vec!["hello".to_string(), "world".to_string(), "123".to_string()];
+        assert_eq!(result, expected);
     }
 
-    Ok(())
+    #[test]
+    fn string_vec_map_macro_works_as_expected() {
+        let result = string_vec_map! {
+            "a" => ["1", "2"],
+            "b" => ["3", "4"]
+        };
+        let mut expected = std::collections::BTreeMap::new();
+        expected.insert("a".to_string(), vec!["1".to_string(), "2".to_string()]);
+        expected.insert("b".to_string(), vec!["3".to_string(), "4".to_string()]);
+        assert_eq!(result, expected);
+    }
 }

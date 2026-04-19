@@ -1,6 +1,3 @@
-use anyhow::Result;
-use commit_wizard::run_cli;
-
-fn main() -> Result<()> {
-    run_cli()
+fn main() -> std::process::ExitCode {
+    commit_wizard::cli::run()
 }
