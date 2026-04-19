@@ -14,4 +14,26 @@ theme:
 
 nav:
   - Home: index.md
+  - Commands:
+    - Global Flags: commands/global-flags.md
+    - add: commands/add.md
+    - bump: commands/bump.md
+    - check: commands/check.md
+    - commit: commands/commit.md
+    - config: commands/config.md
+    - doctor: commands/doctor.md
+    - init: commands/init.md
+    - push: commands/push.md
+    - tag: commands/tag.md
+  - Guides:
+    - Getting Started: guides/getting-started.md
+    - Public API Reference: guides/public-api.md
+    - Registry System: guides/registry-system.md
+    - Configuration:
+      - Recommended: guides/configs/recommended.md
+      - Minimal: guides/configs/minimal.md
+      - Standard: guides/configs/standard.md
+      - Full Reference: guides/configs/full.md
+      - With Rules: guides/configs/with-rules.md
+      - With Registry: guides/configs/with-registry.md
 
