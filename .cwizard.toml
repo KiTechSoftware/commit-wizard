@@ -9,7 +9,6 @@ require_footer = true     # Don't require BREAKING CHANGE footer (optional for b
 footer_key = "BREAKING CHANGE"
 footer_keys = ["BREAKING CHANGE"]
 emoji = "💥"
-emoji_mode = "prefix"
 
 [commit.protected]
 allow = true

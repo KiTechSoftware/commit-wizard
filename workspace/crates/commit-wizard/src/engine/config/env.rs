@@ -10,8 +10,8 @@ use std::env;
 use crate::engine::{
     config::base::{
         BaseConfig, BranchConfig, BranchNamingConfig, CheckCommitsConfig, CheckConfig,
-        CommitConfig, CommitScopesConfig, PrBranchConfig, PrConfig, PrTitleConfig,
-        PushAllowConfig, PushCheckConfig, PushConfig, TicketConfig, VersioningConfig,
+        CommitConfig, CommitScopesConfig, PrBranchConfig, PrConfig, PrTitleConfig, PushAllowConfig,
+        PushCheckConfig, PushConfig, TicketConfig, VersioningConfig,
     },
     constants::env::*,
     models::policy::enforcement::{CommitEnforcementScope, ScopeMode, TicketSource},
