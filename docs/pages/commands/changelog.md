@@ -69,6 +69,24 @@ The command is safe to run repeatedly:
 
 Releases are matched by their heading label, so `## [v1.2.0] - 2026-01-01` and `## v1.2.0` are the same release.
 
+## Links
+
+When the repository has a web address, the changelog links to it:
+
+- each release heading links to the compare view (`## [v1.2.0](…/compare/v1.1.0...v1.2.0) - 2026-01-01`), or to the tag page for the first release;
+- each short hash links to its commit: `([abc1234](…/commit/abc1234…))`;
+- `Unreleased` compares the newest tag to `HEAD`, and a `--next-tag` section compares to the version you are about to tag.
+
+The address comes from the `origin` remote (`git@github.com:acme/app.git` becomes `https://github.com/acme/app`; GitLab remotes use its `/-/` paths). A remote with no web address, such as a local path, gives no links. Override or switch it off in config:
+
+```toml
+[changelog.links]
+enabled = true                              # false removes all links
+url = "https://code.example.com/team/app"   # instead of the origin remote
+```
+
+The JSON output carries the same addresses as `url` fields, and each entry's full commit id as `commit`. Existing releases are matched by label, so turning links on or off rewrites those headings in place rather than adding duplicates.
+
 ## Output formats
 
 **Markdown** (default) is written to `changelog.output`, `CHANGELOG.md` unless configured. Each entry looks like `- **scope:** subject (abc1234)`; use `--group-by-scope` (or `changelog.layout.group_by = ["type", "scope"]`) to group entries under `####` scope headings instead.

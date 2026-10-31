@@ -6,6 +6,10 @@
 
 use std::collections::BTreeMap;
 
+pub mod links;
+
+use links::Links;
+
 use serde::Serialize;
 
 use crate::engine::{
@@ -26,6 +30,11 @@ pub struct Entry {
     pub subject: String,
     pub breaking: bool,
     pub breaking_note: Option<String>,
+    /// Full commit id, for links and machine consumers.
+    #[serde(rename = "commit")]
+    pub full_hash: String,
+    /// Web page for the commit, when links are on.
+    pub url: Option<String>,
 }
 
 /// Entries that share a heading, such as "Features".
@@ -44,6 +53,8 @@ pub struct Release {
     pub to: String,
     pub breaking: Vec<Entry>,
     pub sections: Vec<Section>,
+    /// Compare (or tag) page for the release, when links are on.
+    pub url: Option<String>,
 }
 
 impl Release {
@@ -103,6 +114,8 @@ pub fn build_release(
                     subject: parsed.subject,
                     breaking: is_breaking,
                     breaking_note: note,
+                    full_hash: commit.hash.clone(),
+                    url: None,
                 };
                 (entry, title, rank)
             }
@@ -114,6 +127,8 @@ pub fn build_release(
                     subject: summary.to_string(),
                     breaking: false,
                     breaking_note: None,
+                    full_hash: commit.hash.clone(),
+                    url: None,
                 };
                 (entry, misc_title.clone(), RANK_MISC)
             }
@@ -159,6 +174,22 @@ pub fn build_release(
             .into_iter()
             .map(|(_, title, entries)| Section { title, entries })
             .collect(),
+        url: None,
+    }
+}
+
+/// Point a release and its entries at their pages in the repository.
+/// `link_to` is the revision the release ends at, as it should appear in a
+/// compare URL (a tag name, or `HEAD` for unreleased changes).
+pub fn apply_links(release: &mut Release, links: &Links, link_to: &str) {
+    release.url = Some(links.release(release.from.as_deref(), link_to));
+    for entry in release.breaking.iter_mut().chain(
+        release
+            .sections
+            .iter_mut()
+            .flat_map(|section| section.entries.iter_mut()),
+    ) {
+        entry.url = Some(links.commit(&entry.full_hash));
     }
 }
 
@@ -222,9 +253,13 @@ pub fn render_markdown_release(
 ) -> String {
     let group_by_scope = group_by_scope || model.group_by.iter().any(|g| g == "scope");
 
+    let label = match &release.url {
+        Some(url) => format!("[{}]({url})", release.label),
+        None => release.label.clone(),
+    };
     let mut out = match &release.date {
-        Some(date) => format!("## {} - {}\n\n", release.label, date),
-        None => format!("## {}\n\n", release.label),
+        Some(date) => format!("## {label} - {date}\n\n"),
+        None => format!("## {label}\n\n"),
     };
 
     if release.entry_count() == 0 && release.sections.is_empty() {
@@ -269,7 +304,11 @@ fn bullet(entry: &Entry, show_scope: bool, with_note: bool) -> String {
         (Some(note), true) => format!(" — {note}"),
         _ => String::new(),
     };
-    format!("- {scope}{} ({}){note}\n", entry.subject, entry.hash)
+    let hash = match &entry.url {
+        Some(url) => format!("[{}]({url})", entry.hash),
+        None => entry.hash.clone(),
+    };
+    format!("- {scope}{} ({hash}){note}\n", entry.subject)
 }
 
 /// Unscoped entries first, then one `####` group per scope.
@@ -436,6 +475,12 @@ fn split_blocks(text: &str) -> (String, Vec<(String, String)>) {
 /// `## [1.2.0] - 2026-01-01` and `## 1.2.0` both have the label `1.2.0`.
 fn block_label(heading: &str) -> String {
     let title = heading.trim_start_matches('#').trim();
+    // `[v1.2.0](https://...) - date`: the label is the link text.
+    if let Some(rest) = title.strip_prefix('[')
+        && let Some((text, _)) = rest.split_once(']')
+    {
+        return text.trim().to_string();
+    }
     let label = title.split(" - ").next().unwrap_or(title).trim();
     label.trim_matches(|c| c == '[' || c == ']').to_string()
 }
@@ -819,5 +864,100 @@ mod tests {
         );
         let text = render_markdown_release(&release, &changelog, true);
         assert!(!text.contains("#### api"), "{text}");
+    }
+
+    fn linked_release() -> Release {
+        let mut release = build_release(
+            ReleaseSpec {
+                label: "v1.1.0".to_string(),
+                date: Some("2026-01-02".to_string()),
+                from: Some("v1.0.0".to_string()),
+                to: "v1.1.0".to_string(),
+            },
+            &[
+                commit("feat(core): add parser"),
+                commit_with_footer("fix: tweak", "BREAKING CHANGE: moved"),
+            ],
+            &CommitModel::default(),
+            &ChangelogModel::default(),
+            BuildOptions::default(),
+        );
+        apply_links(
+            &mut release,
+            &Links::new("https://github.com/acme/app"),
+            "v1.1.0",
+        );
+        release
+    }
+
+    #[test]
+    fn links_point_the_heading_at_the_compare_view_and_hashes_at_commits() {
+        let text = render_markdown_release(&linked_release(), &ChangelogModel::default(), false);
+
+        assert!(
+            text.starts_with(
+                "## [v1.1.0](https://github.com/acme/app/compare/v1.0.0...v1.1.0) - 2026-01-02"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains("([0123456](https://github.com/acme/app/commit/0123456789abcdef))"),
+            "{text}"
+        );
+        // Breaking entries link too.
+        assert!(
+            text.contains("(https://github.com/acme/app/commit/fedcba9876543210)"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn the_first_release_links_to_its_tag_page() {
+        let mut release = build(&[commit("feat: a")], BuildOptions::default());
+        apply_links(
+            &mut release,
+            &Links::new("https://github.com/acme/app"),
+            "v1.0.0",
+        );
+        assert_eq!(
+            release.url.as_deref(),
+            Some("https://github.com/acme/app/tree/v1.0.0")
+        );
+    }
+
+    #[test]
+    fn json_carries_the_urls_and_full_commit_ids() {
+        let json: serde_json::Value =
+            serde_json::from_str(&render_json(&[linked_release()])).unwrap();
+        let release = &json["releases"][0];
+
+        assert_eq!(
+            release["url"],
+            "https://github.com/acme/app/compare/v1.0.0...v1.1.0"
+        );
+        let entry = &release["sections"][0]["entries"][0];
+        assert_eq!(entry["commit"].as_str().unwrap().len(), 16);
+        assert!(entry["url"].as_str().unwrap().contains("/commit/"));
+    }
+
+    #[test]
+    fn a_linked_heading_is_matched_by_its_label() {
+        let linked =
+            "# Changelog\n\n## [v1.0.0](https://x/compare/a...b) - 2025-01-01\n\n- old (abc)\n";
+        let merged = merge_markdown(Some(linked), "", &[block("v1.0.0", "fresh")], "Unreleased");
+
+        assert_eq!(merged.matches("## ").count(), 1, "{merged}");
+        assert!(
+            merged.contains("fresh") && !merged.contains("old"),
+            "{merged}"
+        );
+    }
+
+    #[test]
+    fn without_links_nothing_changes_in_the_output() {
+        let release = build(&[commit("feat: a")], BuildOptions::default());
+        let text = render_markdown_release(&release, &ChangelogModel::default(), false);
+        assert!(!text.contains("]("), "{text}");
+        assert_eq!(release.url, None);
     }
 }

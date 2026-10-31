@@ -465,3 +465,154 @@ fn show_empty_sections_and_scopes_work_from_config() {
     assert!(stdout.contains("#### api\n\n_No changes._"), "{stdout}");
     assert!(stdout.contains("#### cli"), "{stdout}");
 }
+
+// --- links ----------------------------------------------------------------
+
+fn with_remote(url: &str) -> Repo {
+    let repo = history();
+    repo.git(&["remote", "set-url", "origin", url]);
+    repo
+}
+
+fn stdout_of(repo: &Repo, args: &[&str]) -> String {
+    let out = repo.cw(args);
+    assert!(out.status.success(), "{}", text(&out));
+    String::from_utf8_lossy(&out.stdout).to_string()
+}
+
+#[test]
+fn a_github_remote_adds_commit_and_compare_links() {
+    let repo = with_remote("git@github.com:acme/app.git");
+    let out = stdout_of(&repo, &["changelog", "--all", "--output", "-"]);
+
+    assert!(
+        out.contains("## [v0.2.0](https://github.com/acme/app/compare/v0.1.0...v0.2.0) - "),
+        "{out}"
+    );
+    assert!(
+        out.contains("## [Unreleased](https://github.com/acme/app/compare/v0.2.0...HEAD)"),
+        "{out}"
+    );
+    assert!(
+        out.contains("## [v0.1.0](https://github.com/acme/app/tree/v0.1.0) - "),
+        "{out}"
+    );
+    assert!(
+        out.contains("](https://github.com/acme/app/commit/"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_gitlab_remote_uses_gitlab_paths() {
+    let repo = with_remote("https://gitlab.com/group/app.git");
+    let out = stdout_of(&repo, &["changelog", "--output", "-"]);
+
+    assert!(
+        out.contains("https://gitlab.com/group/app/-/compare/v0.2.0...HEAD"),
+        "{out}"
+    );
+    assert!(
+        out.contains("https://gitlab.com/group/app/-/commit/"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_local_remote_has_no_web_address_so_no_links() {
+    let repo = history(); // origin is a local bare repository
+    let out = stdout_of(&repo, &["changelog", "--all", "--output", "-"]);
+    assert!(!out.contains("]("), "{out}");
+}
+
+#[test]
+fn next_tag_links_to_the_version_about_to_be_tagged() {
+    let repo = with_remote("https://github.com/acme/app");
+    let out = stdout_of(
+        &repo,
+        &["changelog", "--next-tag", "0.3.0", "--output", "-"],
+    );
+    assert!(
+        out.contains("## [v0.3.0](https://github.com/acme/app/compare/v0.2.0...v0.3.0) - "),
+        "{out}"
+    );
+}
+
+fn edit_config(repo: &Repo, extra: &str) {
+    let path = repo.path().join(".cwizard.toml");
+    let mut config = std::fs::read_to_string(&path).unwrap();
+    config.push_str(extra);
+    std::fs::write(&path, config).unwrap();
+}
+
+#[test]
+fn links_can_be_turned_off() {
+    let repo = with_remote("git@github.com:acme/app.git");
+    edit_config(&repo, "\n[changelog.links]\nenabled = false\n");
+
+    let out = stdout_of(&repo, &["changelog", "--all", "--output", "-"]);
+    assert!(!out.contains("]("), "{out}");
+}
+
+#[test]
+fn the_link_address_can_be_set_in_config() {
+    let repo = history(); // local remote: nothing to derive from
+    edit_config(
+        &repo,
+        "\n[changelog.links]\nurl = \"https://code.example.com/team/app\"\n",
+    );
+
+    let out = stdout_of(&repo, &["changelog", "--output", "-"]);
+    assert!(
+        out.contains("https://code.example.com/team/app/compare/v0.2.0...HEAD"),
+        "{out}"
+    );
+}
+
+#[test]
+fn json_output_includes_the_urls() {
+    let repo = with_remote("git@github.com:acme/app.git");
+    let out = stdout_of(
+        &repo,
+        &[
+            "changelog",
+            "--all",
+            "--output",
+            "-",
+            "--output-format",
+            "json",
+        ],
+    );
+    let json: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+
+    assert_eq!(
+        json["releases"][1]["url"],
+        "https://github.com/acme/app/compare/v0.1.0...v0.2.0"
+    );
+    assert!(
+        json["releases"][0]["sections"][0]["entries"][0]["url"]
+            .as_str()
+            .unwrap()
+            .starts_with("https://github.com/acme/app/commit/")
+    );
+}
+
+#[test]
+fn linked_changelogs_are_stable_across_reruns_and_link_toggles() {
+    let repo = with_remote("git@github.com:acme/app.git");
+    assert!(repo.cw(&["changelog", "--all"]).status.success());
+    let first = changelog(&repo);
+    assert!(repo.cw(&["changelog", "--all"]).status.success());
+    assert_eq!(changelog(&repo), first, "rerun changed the file");
+
+    // Turning links off regenerates the same releases without duplicating them.
+    edit_config(&repo, "\n[changelog.links]\nenabled = false\n");
+    assert!(repo.cw(&["changelog", "--all"]).status.success());
+    let unlinked = changelog(&repo);
+    assert_eq!(
+        headings(&unlinked).len(),
+        headings(&first).len(),
+        "{unlinked}"
+    );
+    assert!(!unlinked.contains("]("), "{unlinked}");
+}

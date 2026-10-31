@@ -517,6 +517,23 @@ impl BaseConfig {
             .unwrap_or_default()
     }
 
+    /// Whether the changelog links entries and releases to the repository (default: yes).
+    pub fn changelog_links_enabled(&self) -> bool {
+        self.changelog
+            .as_ref()
+            .and_then(|c| c.links.as_ref())
+            .and_then(|l| l.enabled)
+            .unwrap_or(true)
+    }
+
+    /// Repository web address to link to, instead of the one from the `origin` remote.
+    pub fn changelog_links_url(&self) -> Option<String> {
+        self.changelog
+            .as_ref()
+            .and_then(|c| c.links.as_ref())
+            .and_then(|l| l.url.clone())
+    }
+
     pub fn changelog_unreleased_label(&self) -> String {
         self.changelog
             .as_ref()

@@ -205,6 +205,13 @@ impl Git {
         Ok(latest.map(|(name, _)| name))
     }
 
+    /// URL of a remote, if it exists.
+    pub fn remote_url(&self, name: &str) -> Option<String> {
+        let repo = self.repo().ok()?;
+        let remote = repo.find_remote(name).ok()?;
+        remote.url().map(str::to_string)
+    }
+
     /// Tags whose commit is `rev` or one of its ancestors, in no particular order.
     pub fn tags_reachable_from(&self, rev: &str) -> Result<Vec<String>, Error> {
         let repo = self.repo()?;

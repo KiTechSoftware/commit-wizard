@@ -4,8 +4,9 @@ use crate::{
     core::{Context, CoreResult},
     engine::{
         capabilities::changelog::{
-            BuildOptions, Release, ReleaseSpec, RenderedBlock, build_release, format_date,
-            merge_markdown, render_header, render_json, render_markdown_release,
+            BuildOptions, Release, ReleaseSpec, RenderedBlock, apply_links, build_release,
+            format_date, links::Links, merge_markdown, render_header, render_json,
+            render_markdown_release,
         },
         constants::emoji::SUCCESS,
         error::ErrorCode,
@@ -40,6 +41,9 @@ struct Range {
     date: Option<String>,
     from: Option<String>,
     to: String,
+    /// What a compare link should end at: the tag, the version about to be
+    /// tagged, or the revision itself.
+    link_to: String,
 }
 
 pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
@@ -90,6 +94,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
             date: today.clone(),
             from: Some(from.clone()),
             to: options.to.clone(),
+            link_to: next_label.clone().unwrap_or_else(|| options.to.clone()),
         });
     } else {
         // Changes since the newest tag, which have not been released yet.
@@ -103,6 +108,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
                 date: next_label.as_ref().and(today.clone()),
                 from: latest,
                 to: options.to.clone(),
+                link_to: next_label.clone().unwrap_or_else(|| options.to.clone()),
             });
         }
 
@@ -115,6 +121,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
                         .and_then(|seconds| format_date(seconds, changelog.date_format.as_deref())),
                     from: tags.get(index + 1).map(|(older, _)| older.clone()),
                     to: tag.clone(),
+                    link_to: tag.clone(),
                 });
             }
         }
@@ -124,6 +131,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
     let build_options = BuildOptions {
         include_non_cc: options.include_non_cc,
     };
+    let links = repo_links(ctx, &changelog);
     let mut releases: Vec<Release> = Vec::new();
     for range in ranges {
         let commits: Vec<CommitSummary> = git
@@ -138,7 +146,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
                     ),
                 )
             })?;
-        releases.push(build_release(
+        let mut release = build_release(
             ReleaseSpec {
                 label: range.label,
                 date: range.date,
@@ -149,7 +157,11 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
             &commit_model,
             &changelog,
             build_options,
-        ));
+        );
+        if let Some(links) = &links {
+            apply_links(&mut release, links, &range.link_to);
+        }
+        releases.push(release);
     }
 
     // --- render ---------------------------------------------------------------
@@ -240,6 +252,21 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
     }
 
     ui.print_with_meta(&content, Some(&meta), true)
+}
+
+/// Where commits and compare views live on the web, if that is known: the
+/// configured address, else the one the `origin` remote implies.
+fn repo_links(ctx: &Context, changelog: &ChangelogModel) -> Option<Links> {
+    if !changelog.links_enabled {
+        return None;
+    }
+    match &changelog.links_url {
+        Some(url) => Some(Links::new(url)),
+        None => ctx
+            .git()
+            .remote_url("origin")
+            .and_then(|remote| Links::from_remote(&remote)),
+    }
 }
 
 enum Target {

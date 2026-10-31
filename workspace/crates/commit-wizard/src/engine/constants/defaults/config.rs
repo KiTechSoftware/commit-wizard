@@ -309,6 +309,7 @@ pub fn default_changelog_config() -> ChangelogConfig {
         header: None,
         layout: Some(default_changelog_layout_config()),
         sections: None,
+        links: None,
     }
 }
 

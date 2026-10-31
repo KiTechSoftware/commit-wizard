@@ -42,6 +42,8 @@ pub struct ChangelogModel {
     pub show_empty_scopes: Option<bool>,
     pub misc_section: Option<String>,
     pub unreleased_label: String,
+    pub links_enabled: bool,
+    pub links_url: Option<String>,
     pub date_format: Option<String>,
     pub sections: BTreeMap<String, ChangelogSectionModel>,
 }
@@ -73,6 +75,8 @@ impl Default for ChangelogModel {
             show_empty_scopes: Some(false),
             misc_section: Some("Miscellaneous".to_string()),
             unreleased_label: "Unreleased".to_string(),
+            links_enabled: true,
+            links_url: None,
             date_format: None,
             sections: BTreeMap::new(),
         }
@@ -114,6 +118,8 @@ impl ChangelogModel {
             show_empty_scopes: base.changelog_show_empty_scopes(),
             misc_section: base.changelog_misc_section(),
             unreleased_label: base.changelog_unreleased_label(),
+            links_enabled: base.changelog_links_enabled(),
+            links_url: base.changelog_links_url(),
             date_format: base.changelog_date_format(),
             sections,
         }

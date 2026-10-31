@@ -284,6 +284,25 @@ pub struct ChangelogConfig {
     pub layout: Option<ChangelogLayoutConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sections: Option<BTreeMap<String, ChangelogSectionConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub links: Option<ChangelogLinksConfig>,
+}
+
+/// Commit and compare links in the changelog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangelogLinksConfig {
+    /// Turn links off with `false` (default: on, when the remote has a web address).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Web address of the repository, used instead of the one derived from the
+    /// `origin` remote.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_string",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
