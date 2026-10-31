@@ -2,6 +2,7 @@
 //!
 //! This module contains the implementation of all CLI subcommands:
 //! - `add`: Stage files for commit
+//! - `branch`: List, switch, create and prune branches
 //! - `bump`: Bump semantic version
 //! - `changelog`: Generate a changelog from commit history
 //! - `check`: Validate commits against Conventional Commits
@@ -14,6 +15,7 @@
 //! - `tag`: Create and manage version tags
 
 pub mod add;
+pub mod branch;
 pub mod bump;
 pub mod changelog;
 pub mod check;

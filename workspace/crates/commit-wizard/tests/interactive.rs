@@ -191,3 +191,82 @@ fn commit_asks_for_a_required_ticket_and_writes_it_into_the_subject() {
     assert!(cw.finish());
     assert_eq!(repo.subjects()[0], "feat: Ticket-012: add ticketing");
 }
+
+// --- cw branch ------------------------------------------------------------------
+
+fn repo_with_branches() -> Repo {
+    let repo = staged_repo();
+    repo.git(&["commit", "-q", "-m", "chore: base"]);
+    repo.git(&["push", "-q", "-u", "origin", "main"]);
+    for name in ["alpha", "beta"] {
+        repo.git(&["switch", "-q", "-c", &format!("feature/{name}")]);
+        repo.commit(&format!("feat: {name}"));
+        repo.git(&["push", "-q", "-u", "origin", &format!("feature/{name}")]);
+    }
+    repo.git(&["switch", "-q", "main"]);
+    repo
+}
+
+#[test]
+fn branch_offers_a_list_to_switch_to() {
+    let repo = repo_with_branches();
+    let mut cw = repo.cw_pty(&["branch"]);
+    cw.expect("Switch to which branch?");
+    cw.line("feature/beta");
+    assert!(cw.finish());
+    assert_eq!(
+        repo.git(&["branch", "--show-current"]).trim(),
+        "feature/beta"
+    );
+}
+
+#[test]
+fn branch_new_asks_for_the_kind_and_the_description() {
+    let repo = repo_with_branches();
+    let mut cw = repo.cw_pty(&["branch", "new"]);
+    cw.expect("What kind of branch is it?");
+    cw.line("bugfix");
+    cw.expect("What are you working on?");
+    cw.line("Fix the crash");
+    cw.expect("Create branch bugfix/fix-the-crash?");
+    cw.line("y");
+    assert!(cw.finish());
+    assert_eq!(
+        repo.git(&["branch", "--show-current"]).trim(),
+        "bugfix/fix-the-crash"
+    );
+}
+
+#[test]
+fn branch_prune_asks_before_deleting_and_can_be_declined() {
+    let repo = repo_with_branches();
+    repo.git(&[
+        "merge",
+        "-q",
+        "--no-ff",
+        "feature/alpha",
+        "-m",
+        "Merge alpha",
+    ]);
+    repo.git(&["push", "-q", "origin", "main"]);
+    repo.git(&["push", "-q", "origin", "--delete", "feature/alpha"]);
+
+    let mut declined = repo.cw_pty(&["branch", "prune"]);
+    declined.expect("Delete 1 branch?");
+    declined.line("n");
+    assert!(declined.finish());
+    assert!(
+        repo.git(&["branch", "--list", "feature/alpha"])
+            .contains("feature/alpha")
+    );
+
+    let mut accepted = repo.cw_pty(&["branch", "prune"]);
+    accepted.expect("Delete 1 branch?");
+    accepted.line("y");
+    assert!(accepted.finish());
+    assert!(
+        !repo
+            .git(&["branch", "--list", "feature/alpha"])
+            .contains("feature/alpha")
+    );
+}

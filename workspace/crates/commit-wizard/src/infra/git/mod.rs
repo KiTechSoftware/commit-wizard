@@ -5,6 +5,8 @@
 //!
 //! The main entry point is the [`Git`] struct which implements all Git operation traits.
 
+mod branches;
+
 use std::{
     collections::{BTreeMap, HashMap},
     io::Write as _,

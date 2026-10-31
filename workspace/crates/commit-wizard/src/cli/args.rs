@@ -74,6 +74,8 @@ pub struct Cli {
 pub enum Command {
     /// Add files to staging area interactively
     Add(cmd::add::Args),
+    /// List, switch, create and prune branches
+    Branch(cmd::branch::Args),
     /// Bump version based on Conventional Commits
     Bump(cmd::bump::Args),
     /// Generate or update a changelog from Conventional Commit history

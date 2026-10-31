@@ -70,7 +70,7 @@ fn should_enforce_commit_check(policy: &Policy, protected_branch: bool) -> bool 
     }
 }
 
-fn is_protected_branch(branch: &str, patterns: &[String]) -> bool {
+pub fn is_protected_branch(branch: &str, patterns: &[String]) -> bool {
     patterns
         .iter()
         .any(|pattern| branch_matches_pattern(branch, pattern))

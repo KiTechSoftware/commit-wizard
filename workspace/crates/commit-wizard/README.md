@@ -44,6 +44,7 @@ cw changelog       # write CHANGELOG.md from the history
 | `cw add` | Stage and unstage files with a picker, paths, or `--all` |
 | `cw check` | Validate commits against the rules; exits non-zero when any break them |
 | `cw fix` | Rewrite commit messages that break the rules, safely, with a backup |
+| `cw branch` | List, switch, create and prune branches, including ones whose remote is gone |
 | `cw bump` | Calculate the next semantic version from the commits since the last tag |
 | `cw tag` | Create (and optionally sign and push) the next version tag, release candidates included |
 | `cw changelog` | Generate or update a changelog from the tag history, in Markdown or JSON |
