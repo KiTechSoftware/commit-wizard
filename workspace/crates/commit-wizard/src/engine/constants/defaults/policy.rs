@@ -32,6 +32,8 @@ pub const COMMIT_BREAKING_FOOTER_KEY: &str = "BREAKING CHANGE";
 pub const COMMIT_TICKET_ENABLED: bool = false;
 pub const COMMIT_TICKET_REQUIRED: bool = false;
 pub const COMMIT_TICKET_SOURCE: TicketSource = TicketSource::Disabled;
+/// Where the ticket goes in the subject: `feat: PROJ-12: add parser`.
+pub const COMMIT_TICKET_HEADER_FORMAT: &str = "{ticket}: ";
 
 pub const COMMIT_PROTECTED_ALLOW: bool = true;
 pub const COMMIT_PROTECTED_FORCE: bool = false;

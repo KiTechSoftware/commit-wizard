@@ -23,6 +23,11 @@ pub struct Args {
     #[arg(long, short = 'A')]
     pub all: bool,
 
+    /// Stage changes to files git already tracks, leaving untracked files out
+    /// (equivalent to `git add -u`)
+    #[arg(long, short = 'a', conflicts_with_all = ["all", "unstage"])]
+    pub tracked: bool,
+
     /// Exclude already staged files from the selection list (interactive)
     #[arg(long)]
     pub exclude_staged: bool,
@@ -42,5 +47,12 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
     let mut seen = HashSet::new();
     paths.retain(|p| seen.insert(p.clone()));
 
-    usage::stage::run(ctx, paths, args.all, args.exclude_staged, args.unstage)
+    usage::stage::run(
+        ctx,
+        paths,
+        args.all,
+        args.exclude_staged,
+        args.unstage,
+        args.tracked,
+    )
 }

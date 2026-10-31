@@ -162,3 +162,32 @@ fn add_unstage_lists_only_staged_files() {
     assert!(cw.finish());
     assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
 }
+
+#[test]
+fn commit_asks_for_a_required_ticket_and_writes_it_into_the_subject() {
+    let repo = Repo::bare();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[commit.ticket]\nrequired = true\nsource = \"prompt\"\npattern = \"Ticket-[0-9]+\"\n",
+    );
+    repo.write("a.txt", "a");
+    repo.git(&["add", "a.txt"]);
+    let mut cw = repo.cw_pty(&["commit"]);
+
+    cw.expect("What type of change");
+    cw.line("feat");
+    cw.expect("Add a scope?");
+    cw.line("n");
+    cw.expect("Ticket");
+    cw.line("not a ticket");
+    cw.expect("does not match");
+    cw.line("Ticket-012");
+    cw.expect("Write a short summary");
+    cw.line("add ticketing");
+    skip_optional_prompts(&mut cw);
+    cw.expect("Create this commit?");
+    cw.line("y");
+
+    assert!(cw.finish());
+    assert_eq!(repo.subjects()[0], "feat: Ticket-012: add ticketing");
+}

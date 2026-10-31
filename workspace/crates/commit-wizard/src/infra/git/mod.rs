@@ -914,6 +914,20 @@ impl Git {
         Ok(())
     }
 
+    /// Stages changes to files git already tracks, including deletions, and leaves
+    /// untracked files alone (`git add -u`).
+    pub fn stage_tracked(&self) -> Result<(), Error> {
+        let repo = self.repo()?;
+        let mut index = repo.index().map_err(|err| self.git2_error("index", err))?;
+        index
+            .update_all(["*"].iter(), None)
+            .map_err(|err| self.git2_error("index.update_all", err))?;
+        index
+            .write()
+            .map_err(|err| self.git2_error("index.write", err))?;
+        Ok(())
+    }
+
     pub fn unstage_all(&self) -> Result<(), Error> {
         let repo = self.repo()?;
         let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
@@ -1165,6 +1179,17 @@ impl Git {
 
     pub fn current_branch(&self) -> Result<String, Error> {
         let repo = self.repo()?;
+        // Before the first commit HEAD names a branch that does not exist yet.
+        if let Err(err) = repo.head()
+            && err.code() == git2::ErrorCode::UnbornBranch
+            && let Some(branch) = repo
+                .find_reference("HEAD")
+                .ok()
+                .and_then(|head| head.symbolic_target().map(str::to_string))
+                .and_then(|target| target.strip_prefix("refs/heads/").map(str::to_string))
+        {
+            return Ok(branch);
+        }
         let head = repo.head().map_err(|err| {
             ErrorCode::ProcessFailure
                 .error()

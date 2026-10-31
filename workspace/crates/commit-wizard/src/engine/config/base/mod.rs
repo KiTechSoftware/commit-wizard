@@ -253,6 +253,14 @@ impl BaseConfig {
             .and_then(|t| t.pattern.clone())
     }
 
+    pub fn commit_ticket_header_format(&self) -> String {
+        self.commit
+            .as_ref()
+            .and_then(|c| c.ticket.as_ref())
+            .and_then(|t| t.header_format.clone())
+            .unwrap_or_else(|| defaults::COMMIT_TICKET_HEADER_FORMAT.to_string())
+    }
+
     pub fn commit_ticket_source(&self) -> crate::engine::models::policy::enforcement::TicketSource {
         self.commit
             .as_ref()
