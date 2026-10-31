@@ -176,6 +176,47 @@ jobs:
       - name: Test workspace
         run: cargo test --workspace --all-targets --all-features --locked
 
+  windows:
+    name: windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: workspace
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            workspace -> target
+
+      - name: Build
+        run: cargo build --workspace --locked
+
+      - name: Show where cw keeps its files
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/probe"
+          cd "$RUNNER_TEMP/probe"
+          "$GITHUB_WORKSPACE/workspace/target/debug/cw" config -g path
+          "$GITHUB_WORKSPACE/workspace/target/debug/cw" doctor | grep -iE "state_file|registry"
+          "$GITHUB_WORKSPACE/workspace/target/debug/cw" init registry ./reg >/dev/null
+          printf 'version = 1\n[registries.r]\nurl = "file://%s/reg"\n[registry]\nuse = "r"\n' "$(pwd)" > .cwizard.toml
+          "$GITHUB_WORKSPACE/workspace/target/debug/cw" config list --effective >/dev/null || true
+          echo "LOCALAPPDATA=$LOCALAPPDATA APPDATA=$APPDATA"
+          ls -R "$LOCALAPPDATA/cwizard" 2>/dev/null | head -20 || true
+
+      - name: Test workspace
+        # Windows support is new: report failures without blocking until they are understood.
+        continue-on-error: true
+        run: cargo test --workspace --all-targets --locked
+
   coverage:
     name: coverage
     runs-on: ubuntu-latest
