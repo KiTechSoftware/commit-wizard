@@ -24,15 +24,15 @@ Run `cw init` on a terminal and it asks how your project works, then writes a co
 
 If the file already exists you are asked whether to replace it; answering no leaves it untouched. Declining the final question writes nothing.
 
-Flags answer their own questions: `cw init --minimal --file-format yaml` skips the profile and format questions. Scripts, CI and `--yes`, `--ci` or `--non-interactive` skip the wizard and write the chosen profile exactly as before, so `cw init --yes` is the quick way to take every default. The wizard also runs for `cw init project` and `cw init config --global`; `rules` and `registry` are not guided.
+Flags answer their own questions: `cw init --minimal --file-format yaml` skips the profile and format questions. Scripts, CI and `--yes`, `--ci` or `--non-interactive` skip the wizard and write the chosen profile exactly as before, so `cw init --yes` is the quick way to take every default. The wizard also runs for `cw init project`, `cw init config` and `cw init config --global`; `rules` and `registry` are not guided.
 
 ## Subcommands
 
 | Subcommand | Description |
 | --- | --- |
 | `project` | Create a project config (`.cwizard.toml`) in the current directory |
-| `config` | Create a config file (project or global) |
-| `rules` | Create a rules file (project or global) |
+| `config` | Create a config file: the project config, or with `--global` your user-wide one |
+| `rules` | Create your user-wide rules file (`--global`). A project keeps its rules in the `[rules]` table of its config, so there is no separate project rules file |
 | `registry <PATH>` | Scaffold a new registry at the given path |
 
 ## Examples
@@ -125,7 +125,7 @@ cw init --config team.yaml                 # the extension picks the format
 
 | Flag | Short | Description |
 | --- | --- | --- |
-| `--global` | `-g` | Write to the global config/rules location |
+| `--global` | `-g` | Write to the global (user-wide) location. `rules` requires it; without it, `config` creates the project config exactly like bare `cw init` |
 
 **`registry <PATH>`:**
 

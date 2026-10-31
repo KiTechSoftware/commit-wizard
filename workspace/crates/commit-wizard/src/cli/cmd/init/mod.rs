@@ -132,6 +132,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
         None => Some(InitScope::Project { hidden: true }),
         Some(InitSubcommand::Project { hidden }) => Some(InitScope::Project { hidden: *hidden }),
         Some(InitSubcommand::Config { global: true }) => Some(InitScope::Global),
+        Some(InitSubcommand::Config { global: false }) => Some(InitScope::Project { hidden: true }),
         _ => None,
     };
     let plan = match scope {

@@ -105,6 +105,11 @@ pub fn init_config(
     answers: Option<WizardAnswers>,
     overwrite: bool,
 ) -> CoreResult<()> {
+    // Without --global this is the project config, the same file bare `cw init` writes.
+    if !global {
+        return init_project_config(ctx, true, profile, file_format, answers, overwrite);
+    }
+
     let ui = ctx.ui();
 
     let spec = match profile.as_str() {
@@ -113,18 +118,10 @@ pub fn init_config(
         _ => init::ConfigSpec::Standard,
     };
 
-    let target = if global {
-        app_config_dir()?
-    } else {
-        ctx.cwd().clone()
-    };
+    let target = app_config_dir()?;
 
     let config_context = init::ConfigContext {
-        option: if global {
-            init::ConfigOption::Global
-        } else {
-            init::ConfigOption::Project
-        },
+        option: init::ConfigOption::Global,
         output_path: target.clone(),
         spec,
         force: ctx.force() || overwrite,
@@ -141,21 +138,19 @@ pub fn init_config(
     let init_output = init::init_config(&config_context)?;
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    let scope = if global { "global" } else { "project" };
-
     let meta = ui
         .new_output_meta()
         .with_duration_ms(duration_ms)
         .with_timestamp(chrono::Utc::now().to_string())
         .with_command("init.config".to_string())
-        .with_scope(scope.to_string())
+        .with_scope("global".to_string())
         .with_dry_run(ctx.dry_run());
 
     let mut content = ui
         .new_output_content()
         .title("Initialized Configuration")
-        .subtitle(format!("Path: {}", target.display()))
-        .data("path", target.display().to_string())
+        .subtitle(format!("Path: {}", init_output.path.display()))
+        .data("path", init_output.path.display().to_string())
         .data("profile", profile.clone());
 
     if ctx.dry_run()
@@ -170,36 +165,35 @@ pub fn init_config(
 pub fn init_rules(
     ctx: &Context,
     global: bool,
-    profile: String,
+    _profile: String,
     file_format: ConfigFormat,
 ) -> CoreResult<()> {
+    // A project has no rules file of its own: its rules are the [rules] table in
+    // the project config, which is where cw reads them from.
+    if !global {
+        return Err(crate::engine::error::ErrorCode::InvalidInput
+            .error()
+            .with_context("command", "init rules")
+            .with_context(
+                "reason",
+                "project rules live in the [rules] table of your project config",
+            )
+            .with_context(
+                "hint",
+                "add a [rules] table to .cwizard.toml, or run `cw init rules --global` for a rules file shared by all your projects",
+            ));
+    }
+
     let ui = ctx.ui();
-
-    let spec = match profile.as_str() {
-        "minimal" => init::ConfigSpec::Minimal,
-        "full" => init::ConfigSpec::Full,
-        _ => init::ConfigSpec::Standard,
-    };
-
-    let target = if global {
-        app_config_dir()?
-    } else {
-        ctx.cwd().clone()
-    };
-
     let config_context = init::ConfigContext {
-        option: if global {
-            init::ConfigOption::Global
-        } else {
-            init::ConfigOption::Project
-        },
-        output_path: target.clone(),
-        spec,
+        option: init::ConfigOption::Rules,
+        output_path: app_config_dir()?,
+        spec: init::ConfigSpec::Standard,
         force: ctx.force(),
         auto_yes: ctx.auto_yes(),
         dry_run: ctx.dry_run(),
         hidden: false,
-        with_rules: true, // Include rules for this operation
+        with_rules: true,
         registry_options: Default::default(),
         file_format,
         answers: None,
@@ -209,27 +203,24 @@ pub fn init_rules(
     let init_output = init::init_config(&config_context)?;
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    let scope = if global { "global" } else { "project" };
-
     let meta = ui
         .new_output_meta()
         .with_duration_ms(duration_ms)
         .with_timestamp(chrono::Utc::now().to_string())
         .with_command("init.rules".to_string())
-        .with_scope(scope.to_string())
+        .with_scope("global".to_string())
         .with_dry_run(ctx.dry_run());
 
     let mut content = ui
         .new_output_content()
         .title("Initialized Rules")
-        .subtitle(format!("Path: {}", target.display()))
-        .data("path", target.display().to_string())
-        .data("profile", profile.clone());
+        .subtitle(format!("Path: {}", init_output.path.display()))
+        .data("path", init_output.path.display().to_string());
 
     if ctx.dry_run()
         && let Some(rendered) = init_output.dry_run_content.clone()
     {
-        content = content.section("Rendered Config", rendered, file_format.name().to_string());
+        content = content.section("Rendered Rules", rendered, file_format.name().to_string());
     }
 
     ui.print_with_meta(&content, Some(&meta), true)

@@ -9,6 +9,8 @@ use crate::engine::{
 pub enum ConfigOption {
     Project,
     Global,
+    /// Only the user-level rules file, leaving the config alone.
+    Rules,
     Registry,
 }
 
@@ -132,6 +134,21 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
             Ok(InitOutput {
                 path: config_path,
                 dry_run_content,
+            })
+        }
+        ConfigOption::Rules => {
+            let path =
+                app_config_dir()?.join(format!("{RULES_STEM}.{}", context.file_format.extension()));
+            if context.dry_run {
+                return Ok(InitOutput {
+                    dry_run_content: Some(context.file_format.render(&rules)?),
+                    path,
+                });
+            }
+            save_rules(&path, &rules, context.force, context.dry_run)?;
+            Ok(InitOutput {
+                path,
+                dry_run_content: None,
             })
         }
         ConfigOption::Registry => init_registry(context),
