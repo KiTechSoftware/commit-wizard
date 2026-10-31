@@ -106,9 +106,23 @@ It asks the same questions as [`cw init`](./init.md#guided-setup) — commit typ
 - before anything is written it lists exactly what would change, such as `commit.scopes.mode: "optional" -> "required"` or `- commit.types.chore`, and asks `Save 2 changes to …?`;
 - if nothing changed, the file is not touched; answering no leaves it as it was; `--dry-run` shows the changes without saving.
 
-The file keeps its format (TOML, YAML or JSON), and settings the editor does not ask about are kept. Like `set` and `unset`, saving rewrites the file, so comments are not preserved.
+The file keeps its format (TOML, YAML or JSON), and settings the editor does not ask about are kept. Saving follows the rules in [How config files are saved](#how-config-files-are-saved): a TOML file keeps its comments, spacing and key order.
 
 `config edit` is for a terminal. In scripts and CI, and with `--yes`, `--ci` or `--non-interactive`, it stops and points you at `config set`.
+
+## How config files are saved
+
+Every write — `set`, `unset`, `edit` and `cw init` — is **atomic**: the new content is written to a temporary file in the same directory, flushed to disk, and then renamed over the original. If cw is interrupted, or the disk fills up, you keep either the old file or the new one, never a truncated config. The file keeps its permissions, a symlinked config is edited through the link, and no temporary files are left behind.
+
+What else changes depends on the format:
+
+| Format | What an edit touches |
+| --- | --- |
+| **TOML** | **Only the keys that changed.** Comments, blank lines, key order and spacing are kept as you wrote them, and a comment on the same line as a changed value stays with it. New settings are added at the end of their table, and a removed setting takes only its own line (or table). |
+| **JSON** | The file is rewritten in full. JSON has no comments to lose; key order follows the config schema. |
+| **YAML** | The file is rewritten in full, so **YAML comments are not preserved**. This is a known limitation: there is no reliable comment-preserving YAML editor available yet. Edit YAML files by hand if you want to keep annotations. |
+
+Settings cw does not recognise (for example a misspelled table, which cw warns about) are never rewritten or removed. If a TOML edit ever cannot be applied cleanly, cw verifies the result by reading it back and falls back to rewriting the whole file instead, which is always correct but drops comments.
 
 ## Seeing the effective configuration
 
@@ -137,7 +151,7 @@ With `--json` the same tables are returned as structured data. `--effective` can
 
 Every one of these can also be written as YAML (`.yaml` or `.yml`) or JSON (`.json`) — for example `.cwizard.yaml` or `~/.config/cwizard/config.json`. See [File formats](../guides/public-api.md#file-formats).
 
-`cw config path`, `show`, `get`, `set` and `unset` work on whichever format the file uses, and `set`/`unset` write the file back in that same format. Note that `set` and `unset` rewrite the whole file, so comments are not kept.
+`cw config path`, `show`, `get`, `set` and `unset` work on whichever format the file uses, and `set`/`unset` write the file back in that same format. See [How config files are saved](#how-config-files-are-saved) for what is preserved.
 
 Use `cw init config` or `cw init project` to create these files. See [`cw init`](./init.md).
 

@@ -291,7 +291,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
             if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
                 fs::create_dir_all(parent)?;
             }
-            fs::write(path, &rendered)?;
+            crate::engine::fs::write_text(path, &rendered)?;
             written = true;
         }
         Target::File(_) => {}

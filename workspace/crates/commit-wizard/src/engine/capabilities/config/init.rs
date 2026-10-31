@@ -178,7 +178,7 @@ fn save_doc<T: serde::Serialize>(path: &Path, input: &T, force: bool, dry_run: b
         std::fs::create_dir_all(parent)?;
     }
 
-    std::fs::write(path, &content)?;
+    crate::engine::fs::write_text(path, &content)?;
     Ok(())
 }
 
@@ -200,7 +200,7 @@ fn save_text(path: &Path, content: &str, force: bool, dry_run: bool) -> Result<(
         std::fs::create_dir_all(parent)?;
     }
 
-    std::fs::write(path, content)?;
+    crate::engine::fs::write_text(path, content)?;
     Ok(())
 }
 

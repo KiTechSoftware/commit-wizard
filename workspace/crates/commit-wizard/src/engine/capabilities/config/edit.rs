@@ -7,7 +7,10 @@ use crate::engine::{
     error::{ErrorCode, Result},
 };
 
-use super::show::{ConfigTarget, resolve_config_path};
+use super::{
+    patch::patch_toml,
+    show::{ConfigTarget, resolve_config_path},
+};
 
 #[derive(Debug, Clone)]
 pub struct ConfigGetInput<'a> {
@@ -102,11 +105,12 @@ pub fn config_set(input: &ConfigSetInput<'_>) -> Result<ConfigSetOutput> {
     };
 
     let mut doc = parse_doc(input.target, format, &raw)?;
+    let before = doc.clone();
     let value = parse_value_for_key(input.key, input.value)?;
 
     set_value(&mut doc, input.key, value.clone())?;
     let validated = validate_doc(input.target, doc)?;
-    let rendered = format.render(&validated)?;
+    let rendered = render_for_save(input.target, format, &raw, &before, &validated)?;
 
     if !input.dry_run {
         if let Some(parent) = path.parent()
@@ -114,7 +118,7 @@ pub fn config_set(input: &ConfigSetInput<'_>) -> Result<ConfigSetOutput> {
         {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&path, &rendered)?;
+        crate::engine::fs::write_text(&path, &rendered)?;
     }
 
     Ok(ConfigSetOutput {
@@ -142,13 +146,14 @@ pub fn config_unset(input: &ConfigUnsetInput<'_>) -> Result<ConfigUnsetOutput> {
     let format = ConfigFormat::from_path(&path);
     let raw = std::fs::read_to_string(&path)?;
     let mut doc = parse_doc(input.target, format, &raw)?;
+    let before = doc.clone();
     let removed = unset_value(&mut doc, input.key)?;
 
     let validated = validate_doc(input.target, doc)?;
-    let rendered = format.render(&validated)?;
+    let rendered = render_for_save(input.target, format, &raw, &before, &validated)?;
 
     if !input.dry_run {
-        std::fs::write(&path, &rendered)?;
+        crate::engine::fs::write_text(&path, &rendered)?;
     }
 
     Ok(ConfigUnsetOutput {
@@ -156,6 +161,29 @@ pub fn config_unset(input: &ConfigUnsetInput<'_>) -> Result<ConfigUnsetOutput> {
         key: input.key.to_string(),
         removed,
     })
+}
+
+/// The text to save for `after`, given the file as it was.
+///
+/// A TOML file is patched in place, so comments, spacing and key order survive
+/// and only the changed keys differ. The patch is checked by reading it back:
+/// if it does not parse to exactly `after` (it always should), the whole file
+/// is re-rendered instead, which is always correct but drops comments. JSON
+/// and YAML files are always re-rendered.
+fn render_for_save(
+    target: ConfigTarget,
+    format: ConfigFormat,
+    raw: &str,
+    before: &Value,
+    after: &Value,
+) -> Result<String> {
+    if format == ConfigFormat::Toml
+        && let Ok(patched) = patch_toml(raw, before, after)
+        && parse_doc(target, format, &patched).is_ok_and(|reparsed| reparsed == *after)
+    {
+        return Ok(patched);
+    }
+    format.render(after)
 }
 
 fn ensure_supported_key(key: &str) -> Result<()> {

@@ -334,7 +334,10 @@ pub fn edit_config(ctx: &Context, global: bool) -> CoreResult<()> {
     use scriba::Table;
 
     use crate::engine::{
-        capabilities::config::effective::{changes, to_document},
+        capabilities::config::{
+            effective::{changes, to_document},
+            patch::patch_toml,
+        },
         config::{ProjectConfig, StandardConfig},
         constants::resolve_global_config_path,
     };
@@ -439,17 +442,33 @@ pub fn edit_config(ctx: &Context, global: bool) -> CoreResult<()> {
     }
 
     if !ctx.dry_run() {
-        let rendered = match loaded {
-            Loaded::Project(mut project) => {
+        // A TOML file is patched in place so its comments and layout survive;
+        // the patch is checked by reading it back, and anything else (or a
+        // mismatch) re-renders the whole file.
+        let reparsed = |text: &str| match &loaded {
+            Loaded::Project(_) => ProjectConfig::from_str_as(ConfigFormat::Toml, text)
+                .ok()
+                .and_then(|project| to_document(&project.inner.config)),
+            Loaded::Global(_) => StandardConfig::from_str_as(ConfigFormat::Toml, text)
+                .ok()
+                .and_then(|standard| to_document(&standard.inner)),
+        };
+        let patched = (format == ConfigFormat::Toml)
+            .then(|| patch_toml(&raw, &before, &after).ok())
+            .flatten()
+            .filter(|text| reparsed(text).as_ref() == Some(&after));
+        let rendered = match (patched, loaded) {
+            (Some(text), _) => text,
+            (None, Loaded::Project(mut project)) => {
                 project.inner.config = updated;
                 format.render(&project)?
             }
-            Loaded::Global(mut standard) => {
+            (None, Loaded::Global(mut standard)) => {
                 standard.inner = updated;
                 format.render(&standard)?
             }
         };
-        std::fs::write(&path, rendered)?;
+        crate::engine::fs::write_text(&path, &rendered)?;
     }
 
     let table = Table::new(
