@@ -104,7 +104,7 @@ Add context with `.with_context("key", value)`; it is printed under the message.
 
 ## Quality gates
 
-CI (`.github/workflows/ci.yml`) runs `lint` (rustfmt and clippy with `-D warnings`), `build`, `test`, `coverage`, `cargo-audit`, `docs` (rustdoc with warnings denied, plus doctests), `package` (`cargo publish --dry-run`, license files and README present) and `msrv` (the minimum Rust version in `Cargo.toml`). Locally, from `workspace/`:
+CI (`.github/workflows/ci.yml`) runs `lint` (rustfmt and clippy with `-D warnings`), `build`, `test`, `coverage`, `cargo-audit`, `windows` (build and the full test suite on Windows; the pty-driven guided-flow tests are Unix-only), `docs` (rustdoc with warnings denied, plus doctests), `package` (`cargo publish --dry-run`, license files and README present) and `msrv` (the minimum Rust version in `Cargo.toml`). Locally, from `workspace/`:
 
 ```sh
 cargo fmt --all -- --check
