@@ -214,7 +214,20 @@ fn is_supported_key(key: &str) -> bool {
             | "ai.provider"
             | "global.inherit"
             | "changelog.output"
+            | "changelog.format"
             | "versioning.tag_prefix"
+            | "commit.use_emojis"
+            | "commit.scopes.mode"
+            | "commit.scopes.restrict_to_defined"
+            | "commit.breaking.require_header"
+            | "commit.breaking.require_footer"
+            | "check.require_conventional"
+            | "check.commits.enabled"
+            | "check.commits.enforce_on"
+            | "push.allow.protected"
+            | "push.allow.force"
+            | "push.check.commits"
+            | "push.check.branch_policy"
     )
 }
 
@@ -351,15 +364,26 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
                 .with_context("value", raw)
                 .with_context("reason", "expected integer")
         }),
-        "commit.ticket.required" | "release.enabled" | "ai.enabled" | "global.inherit" => {
-            raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
-                ErrorCode::ConfigInvalid
-                    .error()
-                    .with_context("key", key)
-                    .with_context("value", raw)
-                    .with_context("reason", "expected boolean")
-            })
-        }
+        "commit.ticket.required"
+        | "release.enabled"
+        | "ai.enabled"
+        | "global.inherit"
+        | "commit.use_emojis"
+        | "commit.scopes.restrict_to_defined"
+        | "commit.breaking.require_header"
+        | "commit.breaking.require_footer"
+        | "check.require_conventional"
+        | "check.commits.enabled"
+        | "push.allow.protected"
+        | "push.allow.force"
+        | "push.check.commits"
+        | "push.check.branch_policy" => raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
+            ErrorCode::ConfigInvalid
+                .error()
+                .with_context("key", key)
+                .with_context("value", raw)
+                .with_context("reason", "expected boolean")
+        }),
         "branch.remote"
         | "commit.ticket.pattern"
         | "commit.ticket.header_format"
@@ -367,6 +391,9 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
         | "release.target_branch"
         | "ai.provider"
         | "changelog.output"
+        | "changelog.format"
+        | "commit.scopes.mode"
+        | "check.commits.enforce_on"
         | "versioning.tag_prefix" => Ok(Value::String(raw.to_string())),
         _ => Err(ErrorCode::ConfigInvalid
             .error()

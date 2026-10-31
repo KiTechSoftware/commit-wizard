@@ -5,8 +5,11 @@ use std::time::Instant;
 use crate::{
     core::{Context, CoreResult},
     engine::{
+        ErrorCode,
         capabilities::config::{
+            edit,
             init::{self, ConfigContext, ConfigOption, ConfigSpec},
+            show::ConfigTarget,
             wizard::WizardAnswers,
         },
         config::ConfigFormat,
@@ -245,7 +248,7 @@ pub fn init_registry(
 
     let registry_options = init::RegistryOptions {
         git_init: false, // User can git init if needed
-        sections: !sections.is_empty(),
+        sections,
         ..Default::default()
     };
 
@@ -289,4 +292,48 @@ pub fn init_registry(
     }
 
     ui.print_with_meta(&content, Some(&meta), true)
+}
+
+/// Splits `--set KEY=VALUE` arguments, so a malformed one stops `cw init` before it writes anything.
+pub fn parse_sets(sets: &[String]) -> CoreResult<Vec<(String, String)>> {
+    sets.iter()
+        .map(|pair| {
+            pair.split_once('=')
+                .filter(|(key, _)| !key.trim().is_empty())
+                .map(|(key, value)| (key.trim().to_string(), value.trim().to_string()))
+                .ok_or_else(|| {
+                    ErrorCode::InvalidInput
+                        .error()
+                        .with_context("flag", "--set")
+                        .with_context("value", pair.clone())
+                        .with_context("reason", "expected KEY=VALUE")
+                })
+        })
+        .collect()
+}
+
+/// Applies `--set` overrides to the config `cw init` just wrote, one validated edit at a time.
+pub fn apply_sets(ctx: &Context, sets: &[(String, String)], global: bool) -> CoreResult<()> {
+    if ctx.dry_run() {
+        return Ok(());
+    }
+    for (key, value) in sets {
+        edit::config_set(&edit::ConfigSetInput {
+            cwd: ctx.cwd(),
+            target: if global {
+                ConfigTarget::Global
+            } else {
+                ConfigTarget::Project
+            },
+            key,
+            value,
+            dry_run: false,
+            explicit_path: if global {
+                None
+            } else {
+                ctx.explicit_config_path().map(|p| p.as_path())
+            },
+        })?;
+    }
+    Ok(())
 }

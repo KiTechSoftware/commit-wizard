@@ -25,7 +25,8 @@ pub enum ConfigSpec {
 pub struct RegistryOptions {
     pub name: String,
     pub git_init: bool,
-    pub sections: bool,
+    /// Names of the section folders to create; empty for a single-source registry.
+    pub sections: Vec<String>,
 }
 
 impl Default for RegistryOptions {
@@ -33,7 +34,7 @@ impl Default for RegistryOptions {
         Self {
             name: "registry".to_string(),
             git_init: false,
-            sections: false,
+            sections: Vec::new(),
         }
     }
 }
@@ -235,13 +236,15 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
     let config_path = root.join(CONFIG_FILE_NAME);
     save_standard(&config_path, &config, context.force, context.dry_run)?;
 
-    let rules_path = root.join(RULES_FILE_NAME);
-    save_rules(
-        &rules_path,
-        &RulesConfig::default(),
-        context.force,
-        context.dry_run,
-    )?;
+    if context.with_rules {
+        let rules_path = root.join(RULES_FILE_NAME);
+        save_rules(
+            &rules_path,
+            &RulesConfig::default(),
+            context.force,
+            context.dry_run,
+        )?;
+    }
 
     let readme_path = root.join("README.md");
     save_text(
@@ -251,8 +254,8 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
         context.dry_run,
     )?;
 
-    if context.registry_options.sections {
-        for section in ["standard", "team1"] {
+    {
+        for section in &context.registry_options.sections {
             let section_dir = root.join(section);
 
             if !context.dry_run {
@@ -266,12 +269,14 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
                 context.dry_run,
             )?;
 
-            save_rules(
-                &section_dir.join(RULES_FILE_NAME),
-                &RulesConfig::default(),
-                context.force,
-                context.dry_run,
-            )?;
+            if context.with_rules {
+                save_rules(
+                    &section_dir.join(RULES_FILE_NAME),
+                    &RulesConfig::default(),
+                    context.force,
+                    context.dry_run,
+                )?;
+            }
         }
     }
 
@@ -318,7 +323,7 @@ fn registry_readme(context: &ConfigContext) -> String {
     s.push_str("- `ref` may be a branch, tag, or commit SHA.\n");
     s.push_str("- If `section` is set, commit-wizard loads `<section>/config.toml` and `<section>/rules.toml`.\n");
     s.push_str("- If `section` is not set, commit-wizard loads `config.toml` and `rules.toml` from the repository root.\n");
-    s.push_str("- Missing files are fatal.\n");
+    s.push_str("- A missing `config.toml` is fatal; `rules.toml` is optional.\n");
     s.push_str("- Invalid TOML or schema violations are fatal.\n");
     s.push_str("- No silent fallback is allowed.\n\n");
 
@@ -333,8 +338,17 @@ fn registry_readme(context: &ConfigContext) -> String {
     s.push_str("- State is advisory only and not authoritative.\n");
     s.push_str("- Registries are trusted input; commit-wizard reads files only and must not execute code from the registry.\n");
 
-    if context.registry_options.sections {
-        s.push_str("\nThis scaffold includes example sections: `standard/` and `team1/`.\n");
+    if !context.registry_options.sections.is_empty() {
+        let names: Vec<String> = context
+            .registry_options
+            .sections
+            .iter()
+            .map(|section| format!("`{section}/`"))
+            .collect();
+        s.push_str(&format!(
+            "\nThis scaffold includes the sections: {}.\n",
+            names.join(", ")
+        ));
     }
 
     s

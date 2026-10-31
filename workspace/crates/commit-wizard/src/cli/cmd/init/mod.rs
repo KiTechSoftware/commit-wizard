@@ -29,7 +29,7 @@ pub struct Args {
     pub profile: Option<InitProfile>,
 
     /// Set multiple keys: --set policy.require_conventional_for_all_commits=true
-    #[arg(long = "set", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+    #[arg(long = "set", global = true, value_parser = clap::builder::NonEmptyStringValueParser::new())]
     pub sets: Vec<String>,
 
     /// Format of the config file to create (ignored when --config names a file)
@@ -127,6 +127,27 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
     let profile_flag = InitProfile::chosen(&args).map(|profile| profile.to_string());
     let format_flag = args.file_format.map(ConfigFormat::from);
 
+    // `--set` edits the config this command writes, so check it before anything is written.
+    let sets = configs::parse_sets(&args.sets)?;
+    if !sets.is_empty()
+        && matches!(
+            args.subcommand,
+            Some(InitSubcommand::Rules { .. } | InitSubcommand::Registry { .. })
+        )
+    {
+        return Err(crate::engine::ErrorCode::InvalidInput
+            .error()
+            .with_context("flag", "--set")
+            .with_context(
+                "reason",
+                "--set applies to project and user configs, not rules or registries",
+            ));
+    }
+    let global_target = matches!(
+        args.subcommand,
+        Some(InitSubcommand::Config { global: true })
+    );
+
     // Guided: a person at a terminal is asked how the project works. Flags
     // answer their own question, and scripts, --yes, --ci and --non-interactive
     // skip the wizard entirely.
@@ -162,7 +183,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
         None => (None, false),
     };
 
-    match args.subcommand {
+    let result = match args.subcommand {
         Some(InitSubcommand::Project { hidden }) => {
             configs::init_project_config(ctx, hidden, profile, file_format, answers, overwrite)
         }
@@ -178,5 +199,8 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
             section,
         }) => configs::init_registry(ctx, path, with_rules, section, profile),
         None => configs::init_project_config(ctx, true, profile, file_format, answers, overwrite),
-    }
+    };
+    result?;
+    configs::apply_sets(ctx, &sets, global_target)?;
+    Ok(())
 }

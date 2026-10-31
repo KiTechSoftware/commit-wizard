@@ -196,3 +196,67 @@ fn init_config_on_a_terminal_runs_the_wizard() {
     let config = std::fs::read_to_string(repo.path().join(".cwizard.toml")).unwrap();
     assert!(config.contains("mode = \"required\""), "{config}");
 }
+
+#[test]
+fn set_overrides_are_written_into_the_new_config() {
+    let repo = Repo::bare();
+    let out = repo.cw(&[
+        "init",
+        "--set",
+        "commit.scopes.mode=required",
+        "--set",
+        "versioning.tag_prefix=rel-",
+    ]);
+    assert!(out.status.success(), "{}", text(&out));
+
+    let raw = std::fs::read_to_string(repo.path().join(".cwizard.toml")).unwrap();
+    let doc: toml::Value = toml::from_str(&raw).unwrap();
+    assert_eq!(doc["commit"]["scopes"]["mode"].as_str(), Some("required"));
+    assert_eq!(doc["versioning"]["tag_prefix"].as_str(), Some("rel-"));
+}
+
+#[test]
+fn a_malformed_set_writes_nothing_and_unknown_keys_or_values_are_rejected() {
+    for bad in ["no-equals", "commit.nope=1", "commit.scopes.mode=bogus"] {
+        let repo = Repo::bare();
+        let out = repo.cw(&["init", "--set", bad]);
+        let written = repo.path().join(".cwizard.toml").exists();
+        assert!(!out.status.success(), "{bad}: {}", text(&out));
+        // Unknown keys and values are rejected after the file exists, so the
+        // file may be present, but a malformed pair must stop before writing.
+        if bad == "no-equals" {
+            assert!(!written, "{bad} wrote a config");
+        }
+    }
+}
+
+#[test]
+fn registry_sections_and_rules_follow_the_flags() {
+    let repo = Repo::bare();
+    let out = repo.cw(&[
+        "init",
+        "registry",
+        "reg",
+        "--section",
+        "frontend",
+        "--section",
+        "backend",
+        "--rules",
+    ]);
+    assert!(out.status.success(), "{}", text(&out));
+    for path in [
+        "reg/config.toml",
+        "reg/rules.toml",
+        "reg/frontend/config.toml",
+        "reg/frontend/rules.toml",
+        "reg/backend/config.toml",
+    ] {
+        assert!(repo.path().join(path).exists(), "{path} missing");
+    }
+    assert!(!repo.path().join("reg/standard").exists());
+
+    let plain = repo.cw(&["init", "registry", "plain"]);
+    assert!(plain.status.success(), "{}", text(&plain));
+    assert!(repo.path().join("plain/config.toml").exists());
+    assert!(!repo.path().join("plain/rules.toml").exists());
+}
