@@ -28,9 +28,9 @@
 //! For contributors, the crate is layered from the outside in:
 //!
 //! - [`cli`]: argument parsing and command dispatch (`cw <command>`)
-//! - [`core`]: the use cases behind each command, and the context they run in
-//! - [`engine`]: models, configuration, validation rules and other logic with no I/O
-//! - [`infra`]: Git, terminal and file-system adapters
+//! - `core`: the use cases behind each command, and the context they run in
+//! - `engine`: models, configuration, validation rules and other logic with no I/O
+//! - `infra`: Git, terminal and file-system adapters
 //!
 //! ## What `cw` enforces
 //!
@@ -52,12 +52,20 @@
 //! - **minor**: a new feature (`feat`)
 //! - **patch**: a fix (`fix`) and other patch-level types
 
+#![warn(missing_docs)]
+
 pub mod cli;
+
+// Implementation detail: hidden from the API docs and not covered by any stability promise.
+#[doc(hidden)]
 pub mod core;
+#[doc(hidden)]
 pub mod engine;
+#[doc(hidden)]
 pub mod infra;
 
 /// A macro to create a vector of strings from a list of string literals.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! strings {
     ($($s:expr),* $(,)?) => {
@@ -65,6 +73,7 @@ macro_rules! strings {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! string_vec_map {
     (

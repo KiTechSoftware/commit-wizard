@@ -6,8 +6,8 @@
 //!
 //! ## Submodules
 //!
-//! - [`args`]: Command-line argument definitions and parsing
-//! - [`cmd`]: Executable commands (commit, check, tag, bump, etc.)
+//! - `args`: Command-line argument definitions and parsing
+//! - `cmd`: Executable commands (commit, check, tag, bump, etc.)
 //!
 //! ## Example
 //!
@@ -19,10 +19,14 @@
 //! }
 //! ```
 
+#[doc(hidden)]
 pub mod args;
+#[doc(hidden)]
 pub mod cmd;
 
 use std::process::ExitCode;
+/// The result type used by command handlers.
+#[doc(hidden)]
 pub type CliResult<T> = Result<T, Error>;
 
 use crate::{
@@ -33,6 +37,10 @@ use clap::Parser;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, fmt};
 
+/// Run the `cw` command line: parse the arguments, run the command, and report any error.
+///
+/// Returns the process exit code. A non-zero code means the command failed; the error has
+/// already been printed.
 pub fn run() -> ExitCode {
     match tokio::runtime::Builder::new_multi_thread()
         .enable_all()

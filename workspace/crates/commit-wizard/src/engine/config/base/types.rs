@@ -6,7 +6,7 @@ use crate::engine::models::policy::enforcement::{
     BumpLevel, ChangelogFormat, CommitEnforcementScope, EmojiMode, ScopeMode, TicketSource,
 };
 
-/// Deserialize Option<String>, treating empty strings as None
+/// Deserialize `Option<String>`, treating empty strings as `None`
 fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
