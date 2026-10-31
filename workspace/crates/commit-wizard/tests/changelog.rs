@@ -394,3 +394,74 @@ fn section_titles_default_to_the_commit_types_section() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("### Documentation"), "{stdout}");
 }
+
+/// Run git with fixed author/committer dates.
+fn git_at(repo: &Repo, date: &str, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo.path())
+        .env("GIT_COMMITTER_DATE", date)
+        .env("GIT_AUTHOR_DATE", date)
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?}");
+}
+
+#[test]
+fn an_annotated_tag_is_dated_by_when_it_was_tagged() {
+    let repo = Repo::new();
+    git_at(
+        &repo,
+        "2020-01-05T12:00:00Z",
+        &["commit", "-q", "--allow-empty", "-m", "feat: first"],
+    );
+    git_at(
+        &repo,
+        "2021-06-15T12:00:00Z",
+        &["tag", "-a", "v1.0.0", "-m", "release"],
+    );
+
+    let out = repo.cw(&["changelog", "--all", "--output", "-"]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+
+    assert!(stdout.contains("## v1.0.0 - 2021-06-15"), "{stdout}");
+}
+
+#[test]
+fn a_lightweight_tag_is_dated_by_its_commit() {
+    let repo = Repo::new();
+    git_at(
+        &repo,
+        "2020-01-05T12:00:00Z",
+        &["commit", "-q", "--allow-empty", "-m", "feat: first"],
+    );
+    git_at(&repo, "2021-06-15T12:00:00Z", &["tag", "v1.0.0"]);
+
+    let out = repo.cw(&["changelog", "--all", "--output", "-"]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+
+    assert!(stdout.contains("## v1.0.0 - 2020-01-05"), "{stdout}");
+}
+
+#[test]
+fn show_empty_sections_and_scopes_work_from_config() {
+    let repo = history();
+    let path = repo.path().join(".cwizard.toml");
+    let config = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("show_empty_sections = false", "show_empty_sections = true")
+        .replace("scope_order = []", "scope_order = [\"api\"]")
+        .replace("show_empty_scopes = false", "show_empty_scopes = true");
+    std::fs::write(&path, config).unwrap();
+
+    let out = repo.cw(&["changelog", "--output", "-", "--group-by-scope"]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+
+    // `docs` and `test` have no unreleased commits but are listed anyway.
+    assert!(
+        stdout.contains("### Documentation\n\n_No changes._"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("#### api\n\n_No changes._"), "{stdout}");
+    assert!(stdout.contains("#### cli"), "{stdout}");
+}

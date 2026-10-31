@@ -232,12 +232,19 @@ impl Git {
         Ok(out)
     }
 
-    /// Commit time of the commit a tag points at, as Unix seconds.
+    /// When a tag was made, as Unix seconds: the tagger date of an annotated
+    /// tag, or the commit time for a lightweight one.
     pub fn tag_timestamp(&self, tag: &str) -> Result<Option<i64>, Error> {
         let repo = self.repo()?;
         let Ok(reference) = repo.find_reference(&format!("refs/tags/{tag}")) else {
             return Ok(None);
         };
+        if let Some(oid) = reference.target()
+            && let Ok(annotated) = repo.find_tag(oid)
+            && let Some(tagger) = annotated.tagger()
+        {
+            return Ok(Some(tagger.when().seconds()));
+        }
         let Ok(obj) = reference.peel(ObjectType::Commit) else {
             return Ok(None);
         };

@@ -128,6 +128,21 @@ pub fn build_release(
         slot.1.push(entry);
     }
 
+    // `show_empty_sections`: list every configured section, even with no commits.
+    if changelog.show_empty_sections == Some(true) {
+        let configured = changelog
+            .section_order
+            .iter()
+            .chain(changelog.sections.keys())
+            .map(String::as_str);
+        for type_name in configured {
+            if let Some((title, rank)) = section_for(type_name, commit_model, changelog) {
+                let slot = grouped.entry(title).or_insert((rank, Vec::new()));
+                slot.0 = slot.0.min(rank);
+            }
+        }
+    }
+
     let mut sections: Vec<(i64, String, Vec<Entry>)> = grouped
         .into_iter()
         .map(|(title, (rank, entries))| (rank, title, entries))
@@ -212,7 +227,7 @@ pub fn render_markdown_release(
         None => format!("## {}\n\n", release.label),
     };
 
-    if release.entry_count() == 0 {
+    if release.entry_count() == 0 && release.sections.is_empty() {
         out.push_str("_No notable changes._\n\n");
         return out;
     }
@@ -227,7 +242,10 @@ pub fn render_markdown_release(
 
     for section in &release.sections {
         out.push_str(&format!("### {}\n\n", section.title));
-        if group_by_scope {
+        if section.entries.is_empty() {
+            // An empty section is one line; it does not repeat every configured scope.
+            out.push_str(EMPTY_SECTION);
+        } else if group_by_scope {
             out.push_str(&render_scoped(&section.entries, model));
         } else {
             for entry in &section.entries {
@@ -239,6 +257,8 @@ pub fn render_markdown_release(
 
     out
 }
+
+const EMPTY_SECTION: &str = "_No changes._\n";
 
 fn bullet(entry: &Entry, show_scope: bool, with_note: bool) -> String {
     let scope = match (&entry.scope, show_scope) {
@@ -264,6 +284,9 @@ fn render_scoped(entries: &[Entry], model: &ChangelogModel) -> String {
         .iter()
         .filter_map(|entry| entry.scope.as_deref())
         .collect();
+    if model.show_empty_scopes == Some(true) {
+        scopes.extend(model.scope_order.iter().map(String::as_str));
+    }
     scopes.sort_unstable();
     scopes.dedup();
     scopes.sort_by_key(|scope| {
@@ -279,8 +302,13 @@ fn render_scoped(entries: &[Entry], model: &ChangelogModel) -> String {
             out.push('\n');
         }
         out.push_str(&format!("#### {scope}\n\n"));
+        let mut any = false;
         for entry in entries.iter().filter(|e| e.scope.as_deref() == Some(scope)) {
+            any = true;
             out.push_str(&bullet(entry, false, false));
+        }
+        if !any {
+            out.push_str(EMPTY_SECTION);
         }
     }
 
@@ -720,5 +748,76 @@ mod tests {
             format_date(1_767_312_000, Some("2006-01-02")).as_deref(),
             Some("2026-01-02")
         );
+    }
+
+    #[test]
+    fn show_empty_sections_lists_configured_sections_without_commits() {
+        let changelog = ChangelogModel {
+            show_empty_sections: Some(true),
+            ..ChangelogModel::default()
+        };
+
+        let release = build_release(
+            spec("v1.0.0"),
+            &[commit("feat: only this")],
+            &CommitModel::default(),
+            &changelog,
+            BuildOptions::default(),
+        );
+        let text = render_markdown_release(&release, &changelog, false);
+
+        // Every configured type's section appears; the empty ones say so.
+        assert!(text.contains("### Features") && text.contains("only this"));
+        assert!(text.contains("### Bug Fixes\n\n_No changes._"), "{text}");
+        assert!(release.sections.len() > 1);
+    }
+
+    #[test]
+    fn empty_sections_stay_hidden_by_default() {
+        let release = build(&[commit("feat: only this")], BuildOptions::default());
+        let text = render_markdown_release(&release, &ChangelogModel::default(), false);
+        assert!(!text.contains("_No changes._"), "{text}");
+        assert_eq!(release.sections.len(), 1);
+    }
+
+    #[test]
+    fn show_empty_scopes_adds_configured_scopes_that_have_no_entries() {
+        let changelog = ChangelogModel {
+            show_empty_scopes: Some(true),
+            scope_order: vec!["api".to_string(), "ui".to_string()],
+            ..ChangelogModel::default()
+        };
+
+        let release = build_release(
+            spec("v1.0.0"),
+            &[commit("feat(ui): button")],
+            &CommitModel::default(),
+            &changelog,
+            BuildOptions::default(),
+        );
+        let text = render_markdown_release(&release, &changelog, true);
+
+        assert!(text.contains("#### api\n\n_No changes._"), "{text}");
+        assert!(text.contains("#### ui\n\n- button"), "{text}");
+        // api is configured first, so it is listed before ui.
+        assert!(text.find("#### api").unwrap() < text.find("#### ui").unwrap());
+    }
+
+    #[test]
+    fn scope_headings_are_not_invented_without_show_empty_scopes() {
+        let changelog = ChangelogModel {
+            scope_order: vec!["api".to_string(), "ui".to_string()],
+            ..ChangelogModel::default()
+        };
+
+        let release = build_release(
+            spec("v1.0.0"),
+            &[commit("feat(ui): button")],
+            &CommitModel::default(),
+            &changelog,
+            BuildOptions::default(),
+        );
+        let text = render_markdown_release(&release, &changelog, true);
+        assert!(!text.contains("#### api"), "{text}");
     }
 }

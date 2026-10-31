@@ -65,6 +65,8 @@ The command is safe to run repeatedly:
 - When a real version is generated (`--next-tag`, `--all`), a stale `Unreleased` section is removed, since those changes now belong to the version.
 - Global `--force` ignores the existing file and writes a fresh one.
 
+**Dates.** A tagged release is dated by when it was tagged: the tagger date for an annotated tag, or the commit date for a lightweight one. A `--next-tag` section is dated today. The plain `Unreleased` section has no date on purpose, so running the command again does not change the file.
+
 Releases are matched by their heading label, so `## [v1.2.0] - 2026-01-01` and `## v1.2.0` are the same release.
 
 ## Output formats
@@ -117,7 +119,7 @@ title = "Bug Fixes"
 order = 1                      # lower sorts first
 ```
 
-`show_empty_sections` and `show_empty_scopes` are accepted but not used yet: sections with no entries are never printed.
+`show_empty_sections = true` lists every configured section (from `section_order` and `[changelog.sections.*]`) in each release, with `_No changes._` under the ones that have no commits. `show_empty_scopes = true` does the same for the scopes in `scope_order` when entries are grouped by scope. Both are off by default.
 
 ## Global flags
 
