@@ -98,7 +98,7 @@ cw init project
 | `--minimal` | `--full`, `--profile` | Generate a minimal config with only required fields |
 | `--full` | `--minimal`, `--profile` | Generate a full config with all fields |
 | `--profile <PROFILE>` | `--minimal`, `--full` | Profile: `minimal`, `standard` (default), `full` |
-| `--set <KEY=VALUE>` | | Inline key-value overrides; may be repeated |
+| `--set <KEY=VALUE>` | | Override a setting in the config being created; may be repeated, before or after the subcommand. Accepts the keys `cw config set` accepts (see [Settable keys](config.md#settable-keys)); a malformed pair stops before anything is written, and an unknown key or invalid value is rejected. Not for `rules` or `registry` |
 
 ### Choosing the file format
 
@@ -131,8 +131,8 @@ cw init --config team.yaml                 # the extension picks the format
 
 | Flag | Description |
 | --- | --- |
-| `--rules` | Include a `rules.toml` file in the registry |
-| `--section <NAME>` | Create a named subdirectory section; may be repeated |
+| `--rules` | Also write a `rules.toml` (in the registry root and in each section); without it only `config.toml` is written |
+| `--section <NAME>` | Create a section folder with that name, each with its own `config.toml`; may be repeated. Without it the registry is single-source |
 
 ## Profiles
 

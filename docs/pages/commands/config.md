@@ -90,6 +90,30 @@ inherit = true   # global config sits under this project's settings
 
 `cw config show` prints the raw contents of one config file. To see the resolved result, use `cw config list --effective`.
 
+## Settable keys
+
+`cw config set` and `cw config unset` accept these keys (anything else is rejected with `unsupported or unknown key`; use `cw config edit` or edit the file for the rest). Values are checked before they are written.
+
+| Key | Value |
+| --- | --- |
+| `commit.subject_max_length` | whole number |
+| `commit.use_emojis` | `true` / `false` |
+| `commit.scopes.mode` | `disabled`, `optional`, `required` |
+| `commit.scopes.restrict_to_defined` | `true` / `false` |
+| `commit.breaking.require_header`, `commit.breaking.require_footer` | `true` / `false` |
+| `commit.ticket.required` | `true` / `false` |
+| `commit.ticket.pattern`, `commit.ticket.header_format` | text |
+| `check.require_conventional`, `check.commits.enabled` | `true` / `false` |
+| `check.commits.enforce_on` | `all_branches`, `protected_branches`, `none` |
+| `push.allow.protected`, `push.allow.force` | `true` / `false` |
+| `push.check.commits`, `push.check.branch_policy` | `true` / `false` |
+| `branch.remote` | remote name |
+| `changelog.output`, `changelog.format` | file path; `markdown` or `json` |
+| `versioning.tag_prefix` | text, such as `v` |
+| `release.enabled`, `ai.enabled` | `true` / `false` (reserved sections) |
+| `release.source_branch`, `release.target_branch`, `ai.provider` | text (reserved sections) |
+| `global.inherit` | `true` / `false` |
+
 ## Editing with guidance
 
 `cw config set` needs the exact key and value. If you would rather be asked, run:
