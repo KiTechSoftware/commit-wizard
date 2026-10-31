@@ -360,6 +360,8 @@ pub fn default_registry_config() -> RegistryConfig {
     RegistryConfig {
         use_registry: Some(String::new()),
         section: None,
+        required: None,
+        cache: None,
     }
 }
 

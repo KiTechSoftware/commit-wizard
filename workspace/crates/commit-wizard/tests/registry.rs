@@ -50,6 +50,11 @@ fn registry(files: &[(&str, &str)]) -> TempDir {
 
 /// A repo whose only config is a pointer at `registry_url`, with a staged file.
 fn repo_using(registry_url: &str) -> Repo {
+    repo_with(registry_url, "v0.1.0", "")
+}
+
+/// Like `repo_using`, with a chosen ref and extra lines for the `[registry]` table.
+fn repo_with(registry_url: &str, git_ref: &str, registry_options: &str) -> Repo {
     let repo = Repo::bare();
     repo.write(
         ".cwizard.toml",
@@ -57,10 +62,11 @@ fn repo_using(registry_url: &str) -> Repo {
             r#"[registry]
 use = "local"
 section = "custom"
+{registry_options}
 
 [registries.local]
 url = "{registry_url}"
-ref = "v0.1.0"
+ref = "{git_ref}"
 sections = ["custom"]
 "#
         ),
@@ -143,4 +149,111 @@ fn registry_section_without_config_is_reported() {
     assert!(output.contains("Registry load failed"), "{output}");
     assert!(output.contains("config.toml"), "{output}");
     assert!(!output.contains("panicked"), "{output}");
+}
+
+#[test]
+fn unreachable_registry_is_a_warning_and_doctor_counts_it() {
+    let repo = repo_using("file:///definitely/not/a/registry");
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(text(&out).contains("[warn]"), "{}", text(&out));
+    assert!(!text(&out).contains("[error]"), "{}", text(&out));
+
+    let doctor = repo.cw(&["doctor"]);
+    let report = text(&doctor);
+    assert!(report.contains("warnings: 1"), "{report}");
+    assert!(!report.contains("All checks passed"), "{report}");
+}
+
+#[test]
+fn required_registry_that_is_unreachable_fails_hard() {
+    let repo = repo_with(
+        "file:///definitely/not/a/registry",
+        "v0.1.0",
+        "required = true",
+    );
+    let before = repo.subjects_or_empty();
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(!out.status.success(), "{}", text(&out));
+    assert!(
+        text(&out).contains("Registry sync failed"),
+        "{}",
+        text(&out)
+    );
+    assert_eq!(repo.subjects_or_empty(), before, "no commit may be made");
+}
+
+#[test]
+fn required_registry_without_config_fails_hard() {
+    let reg = registry(&[("custom/readme.md", "no config here")]);
+    let repo = repo_with(&file_url(reg.path()), "v0.1.0", "required = true");
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(!out.status.success(), "{}", text(&out));
+    assert!(text(&out).contains("config.toml"), "{}", text(&out));
+}
+
+#[test]
+fn required_registry_that_is_not_configured_fails_hard() {
+    let repo = Repo::bare();
+    repo.write(
+        ".cwizard.toml",
+        "[registry]\nuse = \"missing\"\nrequired = true\n",
+    );
+    repo.write("x.txt", "x");
+    repo.git(&["add", "-A"]);
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(!out.status.success(), "{}", text(&out));
+    assert!(
+        text(&out).contains("required but not configured"),
+        "{}",
+        text(&out)
+    );
+}
+
+#[test]
+fn required_registry_that_loads_works_normally() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_with(&file_url(reg.path()), "v0.1.0", "required = true");
+
+    let out = repo.cw(&["commit", "-t", "wip", "-m", "ok"]);
+    assert!(out.status.success(), "{}", text(&out));
+}
+
+#[test]
+fn disabling_the_cache_refetches_on_every_run() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_with(
+        &file_url(reg.path()),
+        "v0.1.0",
+        "required = true\ncache = false",
+    );
+
+    let first = repo.cw(&["commit", "-t", "wip", "-m", "first"]);
+    assert!(first.status.success(), "{}", text(&first));
+
+    drop(reg); // nothing cached, so the next run cannot load it
+    repo.write("y.txt", "y");
+    repo.git(&["add", "y.txt"]);
+    let second = repo.cw(&["commit", "-t", "wip", "-m", "second"]);
+    assert!(!second.status.success(), "{}", text(&second));
+}
+
+#[test]
+fn stale_cache_is_used_when_a_branch_registry_cannot_sync() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let url = file_url(reg.path());
+    let repo = repo_with(&url, "main", "required = true");
+
+    let first = repo.cw(&["commit", "-t", "wip", "-m", "first"]);
+    assert!(first.status.success(), "{}", text(&first));
+
+    drop(reg); // the remote is gone; the cached copy remains
+    repo.write("y.txt", "y");
+    repo.git(&["add", "y.txt"]);
+    let second = repo.cw(&["commit", "-t", "wip", "-m", "second"]);
+    assert!(second.status.success(), "{}", text(&second));
+    assert_eq!(repo.subjects()[0], "wip: second");
 }

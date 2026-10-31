@@ -169,6 +169,39 @@ rm -rf ~/.cache/cwizard/registries/<registry-id>
 # Cache rebuilds on next run
 ```
 
+### Disabling the cache
+
+Set `cache = false` to clone the registry fresh on every run. Nothing is kept
+between runs, so the registry must be reachable each time.
+
+```toml
+[registry]
+use = "my-org"
+cache = false   # default: true
+```
+
+When caching is on and a branch registry cannot be synced (for example you are
+offline), `cw` warns and keeps using the cached copy.
+
+## Failure behavior
+
+By default a registry that cannot be loaded (unreachable, missing `config.toml`,
+unknown section) is reported as a warning and `cw` continues with the rest of
+your configuration. `cw doctor` lists each failure as a warning.
+
+To fail hard instead, mark the registry as required:
+
+```toml
+[registry]
+use = "my-org"
+required = true   # default: false
+```
+
+With `required = true`, `cw` stops with the registry error before running the
+command, including when `use` names a registry that is not configured. Only
+the active registry is affected; other registries in `[registries.*]` that
+fail to load are always warnings.
+
 ## Resolution precedence
 
 Behavior and rules follow separate, well-defined precedence chains:

@@ -279,6 +279,19 @@ impl Repo {
             .collect()
     }
 
+    /// Like `subjects`, but empty (not a failure) when there are no commits.
+    pub fn subjects_or_empty(&self) -> Vec<String> {
+        let out = Command::new("git")
+            .args(["log", "--format=%s"])
+            .current_dir(self.path())
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(str::to_string)
+            .collect()
+    }
+
     pub fn write(&self, name: &str, contents: &str) {
         std::fs::write(self.path().join(name), contents).unwrap();
     }

@@ -463,6 +463,14 @@ pub struct RegistryConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub section: Option<String>,
+    /// Fail hard when the active registry cannot be loaded. Default: warn and
+    /// continue with the remaining configuration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+    /// Keep registries in the local cache. Default: true. When false the
+    /// registry is cloned fresh on every run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

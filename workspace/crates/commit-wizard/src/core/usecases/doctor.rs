@@ -183,6 +183,9 @@ pub fn run(ctx: &Context) -> CoreResult<()> {
     } else {
         CheckResult::info("Registries", "none configured")
     });
+    for failure in &sources.registry_failures {
+        checks.push(CheckResult::warn("Registry", failure.clone()));
+    }
 
     // --- Print results ---
     for check in &checks {

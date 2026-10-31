@@ -680,6 +680,19 @@ impl BaseConfig {
             .filter(|s| !s.trim().is_empty())
     }
 
+    /// Whether a failure to load the active registry must stop the command.
+    pub fn registry_required(&self) -> bool {
+        self.registry
+            .as_ref()
+            .and_then(|r| r.required)
+            .unwrap_or(false)
+    }
+
+    /// Whether registries are kept in (and served from) the local cache.
+    pub fn registry_cache(&self) -> bool {
+        self.registry.as_ref().and_then(|r| r.cache).unwrap_or(true)
+    }
+
     pub fn registries_map(&self) -> HashMap<String, NamedRegistryConfig> {
         self.registries
             .clone()
