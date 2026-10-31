@@ -13,7 +13,7 @@ readme = "../README.md"
 
 [workspace.dependencies]
 commit-wizard = { path = "crates/commit-wizard" }
-scriba = { version = "0.5", features = ["full"] }
+scriba = { version = "0.5", features = ["prompt", "logger"] }
 cliai = "0.2.0"
 
 chrono = { version = "0.4.41", features = ["serde"] }
