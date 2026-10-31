@@ -28,8 +28,10 @@ pub fn run(
 
     let non_interactive = !ctx.is_interactive() || (commit_type.is_some() && message.is_some());
 
-    // breaking message validation
+    // A breaking description is only mandatory when the policy requires the
+    // footer; otherwise it is optional, and written when provided.
     if breaking
+        && policy.breaking_footer_required
         && breaking_message
             .as_ref()
             .map(|s| s.trim().is_empty())
@@ -197,16 +199,20 @@ pub fn run(
         let msg = ui.text(
             "Describe the breaking change",
             None,
-            Some("Required when marking a commit as breaking"),
+            Some(if policy.breaking_footer_required {
+                "Required by current commit policy"
+            } else {
+                "Optional; leave empty to omit the BREAKING CHANGE footer"
+            }),
         )?;
         let trimmed = msg.trim().to_string();
-        if trimmed.is_empty() {
+        if trimmed.is_empty() && policy.breaking_footer_required {
             return Err(ErrorCode::InvalidInput
                 .error()
                 .with_context("field", "breaking_message")
                 .with_context("reason", "breaking change description cannot be empty"));
         }
-        (true, Some(trimmed))
+        (true, (!trimmed.is_empty()).then_some(trimmed))
     } else {
         (false, None)
     };
