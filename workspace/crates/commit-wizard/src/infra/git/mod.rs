@@ -162,6 +162,12 @@ impl Git {
             .tag_names(None)
             .map_err(|err| self.git2_error("tag_names", err))?;
 
+        // Only tags reachable from HEAD count, so tags from other branches
+        // never become the base of a version bump.
+        let Some(head) = repo.head().ok().and_then(|head| head.target()) else {
+            return Ok(None);
+        };
+
         let mut latest: Option<(String, git2::Time)> = None;
         let version_of = |tag: &str| Version::parse(tag, "v");
 
@@ -176,6 +182,12 @@ impl Git {
             let Some(commit) = obj.as_commit() else {
                 continue;
             };
+
+            let reachable =
+                commit.id() == head || repo.graph_descendant_of(head, commit.id()).unwrap_or(false);
+            if !reachable {
+                continue;
+            }
 
             let time = commit.time();
 
