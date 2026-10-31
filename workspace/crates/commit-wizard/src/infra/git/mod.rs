@@ -19,7 +19,10 @@ use git2::{
 
 use crate::engine::{
     Error, ErrorCode,
-    models::git::{Change, CommitSummary, FileStatus},
+    models::{
+        git::{Change, CommitSummary, FileStatus},
+        policy::versioning::Version,
+    },
 };
 
 /// A tag boundary with all commits that fall in the range `(prev_tag, tag]`.
@@ -160,6 +163,7 @@ impl Git {
             .map_err(|err| self.git2_error("tag_names", err))?;
 
         let mut latest: Option<(String, git2::Time)> = None;
+        let version_of = |tag: &str| Version::parse(tag, "v");
 
         for tag_name in tags.iter().flatten() {
             let tag_ref = format!("refs/tags/{tag_name}");
@@ -175,8 +179,13 @@ impl Git {
 
             let time = commit.time();
 
+            // Newest commit wins; tags on the same second (or commit) fall
+            // back to the higher version instead of iteration order.
             match &latest {
-                Some((_, prev)) if time.seconds() <= prev.seconds() => {}
+                Some((_, prev)) if time.seconds() < prev.seconds() => {}
+                Some((prev_name, prev))
+                    if time.seconds() == prev.seconds()
+                        && version_of(tag_name) <= version_of(prev_name) => {}
                 _ => latest = Some((tag_name.to_string(), time)),
             }
         }

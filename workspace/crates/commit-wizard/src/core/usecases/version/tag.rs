@@ -38,7 +38,7 @@ pub fn run(
     let commit_model = CommitModel::from_config(resolved_config);
 
     // Determine the version to tag
-    let version = if let Some(explicit_version) = set_version {
+    let mut version = if let Some(explicit_version) = set_version {
         // User provided explicit version (may or may not have prefix)
         Version::parse(&explicit_version, &versioning_model.tag_prefix)
             .or_else(|| Version::parse(&explicit_version, ""))
@@ -63,8 +63,9 @@ pub fn run(
             .map_err(|_| ErrorCode::GitCommandFailed.error())?;
 
         if commits.is_empty() {
-            // No new commits - use current version
+            // No new commits - use current version (a prerelease is promoted)
             current_version
+                .map(|v| v.release())
                 .or(Some(versioning_model.initial_version.clone()))
                 .ok_or_else(|| {
                     ErrorCode::StateInvalid
@@ -78,17 +79,23 @@ pub fn run(
         }
     };
 
-    // Apply prefix and suffix
+    // A suffix turns the version into a prerelease (`rc` -> `-rc.N`)
+    if let Some(ref label) = suffix {
+        let existing: Vec<Version> = git
+            .list_tags_sorted()
+            .map_err(|e| e.with_context("operation", "list tags"))?
+            .iter()
+            .filter_map(|tag| Version::parse(tag, &versioning_model.tag_prefix))
+            .collect();
+        version = version.with_prerelease(label, &existing);
+    }
+
+    // Apply prefix
     let tag_prefix = prefix
         .clone()
         .unwrap_or_else(|| versioning_model.tag_prefix.clone());
     let formatted_version = version.to_semver();
-    let tag_name = format!(
-        "{}{}{}",
-        tag_prefix,
-        formatted_version,
-        suffix.clone().unwrap_or_default()
-    );
+    let tag_name = format!("{}{}", tag_prefix, formatted_version);
 
     // In interactive mode, ask for confirmation
     if ctx.is_interactive() && !ctx.force() {
@@ -118,8 +125,13 @@ pub fn run(
     }
 
     // Log success
-    ui.logger()
-        .ok(&format!("{} Tag created: {}", SUCCESS, tag_name));
+    if ctx.dry_run() {
+        ui.logger()
+            .ok(&format!("{} Would create tag: {}", SUCCESS, tag_name));
+    } else {
+        ui.logger()
+            .ok(&format!("{} Tag created: {}", SUCCESS, tag_name));
+    }
 
     // Build output
     let duration_ms = start.elapsed().as_millis() as u64;
