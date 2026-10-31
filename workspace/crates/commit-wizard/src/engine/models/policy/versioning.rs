@@ -140,10 +140,11 @@ impl Version {
 
     /// Attach a prerelease label. A bare label such as `rc` is numbered one
     /// past the highest matching `rc.N` in `existing`; a label that already
-    /// carries identifiers (`rc.2`, `beta.1`) is used as given.
+    /// carries identifiers or ends in a number (`rc.2`, `beta.1`, `rc1`) is used as given.
     pub fn with_prerelease(&self, label: &str, existing: &[Version]) -> Self {
         let label = label.trim_start_matches('-');
-        let pre = if label.contains('.') {
+        let explicit = label.contains('.') || label.ends_with(|c: char| c.is_ascii_digit());
+        let pre = if explicit {
             label.to_string()
         } else {
             let next = existing
@@ -297,6 +298,22 @@ mod tests {
         assert_eq!(
             base.with_prerelease("-beta.4", &existing).to_semver(),
             "2.0.0-beta.4"
+        );
+    }
+
+    #[test]
+    fn labels_ending_in_a_number_are_used_as_written() {
+        let base = v("2.0.0");
+        let existing = [v("2.0.0-rc.1")];
+        assert_eq!(
+            base.with_prerelease("rc1", &existing).to_semver(),
+            "2.0.0-rc1"
+        );
+        assert_eq!(base.with_prerelease("-rc1", &[]).to_semver(), "2.0.0-rc1");
+        // A bare word is still numbered.
+        assert_eq!(
+            base.with_prerelease("rc", &existing).to_semver(),
+            "2.0.0-rc.2"
         );
     }
 }
