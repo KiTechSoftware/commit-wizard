@@ -39,7 +39,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            workflows -> target
+            workspace -> target
 
       - name: Format check
         run: cargo fmt --all --check
@@ -65,7 +65,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            workflows -> target
+            workspace -> target
 
       - name: Build workspace
         run: cargo build --workspace --all-targets --all-features --locked
@@ -88,7 +88,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            workflows -> target
+            workspace -> target
 
       - name: Test workspace
         run: cargo test --workspace --all-targets --all-features --locked
@@ -113,7 +113,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            workflows -> target
+            workspace -> target
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -147,7 +147,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            workflows -> target
+            workspace -> target
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
