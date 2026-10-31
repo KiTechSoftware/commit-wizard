@@ -286,6 +286,7 @@ See [Configuration Guides](../guides/configs/standard.md) for full reference and
 | Command | Purpose |
 | --- | --- |
 | `cw add` | Stage files interactively or explicitly |
+| `cw branch` | List, switch, create and prune branches |
 | `cw commit` | Write a conventional commit interactively or via flags |
 | `cw check` | Validate commit history for compliance |
 | `cw bump` | Calculate next semantic version |
