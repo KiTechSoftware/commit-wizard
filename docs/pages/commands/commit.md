@@ -98,4 +98,4 @@ When `commit.scopes.restrict_to_defined = true`, only scopes defined in `[commit
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--dry-run` prints the final commit message without running `git commit`.
+All [global flags](global-flags.md) are supported. `--dry-run` prints the final commit message without running `git commit`.

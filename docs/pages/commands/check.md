@@ -67,4 +67,4 @@ Use [`cw config show`](./config.md) to inspect the active rules that `cw check` 
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--ci` or `--non-interactive` are recommended in automation contexts.
+All [global flags](global-flags.md) are supported. `--ci` or `--non-interactive` are recommended in automation contexts.

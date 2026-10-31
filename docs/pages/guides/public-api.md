@@ -43,7 +43,7 @@ subject_max_length = 72
 
 [commit.types.wip]
 description = "Work in progress"
-bump = "Patch"
+bump = "patch"
 ```
 
 ```yaml
@@ -254,15 +254,16 @@ emoji = "💥"
 
 #### `commit.breaking.emoji_mode`
 
-**Type:** enum (`"prefix"`, `"suffix"`, `"replace"`)  
-**Default:** `"prefix"`  
-**Description:** Where to place the breaking change emoji in output.
+**Type:** enum (`"prepend"`, `"append"`, `"replace"`, `"none"`)  
+**Default:** `"prepend"`  
+**Description:** Where the breaking change emoji is meant to go. The value is validated and kept in the resolved config, but no command applies it to commit messages yet.
 
 ```toml
 [commit.breaking]
-emoji_mode = "prefix"   # 💥 feat(api): ...
-emoji_mode = "suffix"   # feat(api)! 💥: ...
-emoji_mode = "replace"  # 💥(api): ...
+emoji_mode = "prepend"  # 💥 feat(api): ...
+emoji_mode = "append"   # feat(api)!: ... 💥
+emoji_mode = "replace"  # replaces the type with the emoji
+emoji_mode = "none"     # never shown
 ```
 
 ### `commit.protected`
@@ -811,7 +812,7 @@ require_header = false
 require_footer = false
 footer_key = "BREAKING CHANGE"
 emoji = "💥"
-emoji_mode = "prefix"
+emoji_mode = "prepend"
 
 [branch]
 remote = "origin"

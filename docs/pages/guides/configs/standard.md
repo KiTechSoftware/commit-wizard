@@ -77,7 +77,7 @@ require_header = false
 require_footer = false
 footer_key = "BREAKING CHANGE"
 emoji = "💥"
-emoji_mode = "prefix"
+emoji_mode = "prepend"
 
 # Tickets are not required
 [commit.ticket]

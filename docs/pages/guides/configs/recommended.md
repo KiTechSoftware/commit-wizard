@@ -9,7 +9,7 @@ This guide shows recommended configurations for different team types and sizes.
 ```toml
 version = 1
 
-[commit.subject_max_length]
+[commit]
 subject_max_length = 72
 
 # Use all built-in commit types and defaults
@@ -38,7 +38,7 @@ cw init --profile minimal
 ```toml
 version = 1
 
-[commit.subject_max_length]
+[commit]
 subject_max_length = 72
 
 [commit.scopes]

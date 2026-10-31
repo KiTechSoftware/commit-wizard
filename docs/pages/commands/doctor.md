@@ -47,4 +47,4 @@ cw doctor --ci --json
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported.
+All [global flags](global-flags.md) are supported.

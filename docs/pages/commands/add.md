@@ -52,4 +52,4 @@ cw add --exclude-staged
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported, including `--dry-run` to preview what would be staged without actually staging it.
+All [global flags](global-flags.md) are supported, including `--dry-run` to preview what would be staged without actually staging it.

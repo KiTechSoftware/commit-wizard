@@ -144,4 +144,4 @@ cw init --config team.yaml                 # the extension picks the format
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. Use `--dry-run` to preview what would be written without creating any files.
+All [global flags](global-flags.md) are supported. Use `--dry-run` to preview what would be written without creating any files.

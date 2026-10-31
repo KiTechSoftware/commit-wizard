@@ -104,4 +104,4 @@ Or via the environment variable `CW_VERSIONING_TAG_PREFIX`.
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--dry-run` prints the tag that would be created without writing to Git.
+All [global flags](global-flags.md) are supported. `--dry-run` prints the tag that would be created without writing to Git.

@@ -125,7 +125,7 @@ require_footer = true  # Require BREAKING CHANGE: footer
 footer_key = "BREAKING CHANGE"
 footer_keys = ["BREAKING", "BREAKING-CHANGE"]
 emoji = "💥"
-emoji_mode = "prefix"  # "prefix", "suffix", "replace"
+emoji_mode = "prepend"  # "prepend", "append", "replace", "none" (not applied by any command yet)
 
 # Commit protection on protected branches
 [commit.protected]

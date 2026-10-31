@@ -70,8 +70,8 @@ protected = false       # allow pushing to protected branches
 force = false           # allow force push
 ```
 
-These can also be overridden with the `--force` global flag or via environment variables (`CW_PUSH_CHECK_COMMITS`, `CW_PUSH_ALLOW_PROTECTED`, etc.).
+These can also be overridden with the `--force` global flag or via environment variables (`CW_PUSH_CHECK_COMMITS`, `CW_PUSH_ALLOW_PROTECTED`, etc.; see [environment variables](../guides/environment.md)).
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--dry-run` simulates the push and any checks without making network calls.
+All [global flags](global-flags.md) are supported. `--dry-run` simulates the push and any checks without making network calls.

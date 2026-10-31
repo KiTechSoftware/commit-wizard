@@ -157,4 +157,4 @@ Use `cw init config` or `cw init project` to create these files. See [`cw init`]
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. Use `--config <PATH>` to target a specific config file.
+All [global flags](global-flags.md) are supported. Use `--config <PATH>` to target a specific config file.

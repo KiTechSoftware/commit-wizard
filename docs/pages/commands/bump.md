@@ -56,4 +56,4 @@ The bump level is determined by the _highest_ impact commit in the range. You ca
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. Use `--dry-run` to preview the result without side effects, or `--json` to get machine-readable output.
+All [global flags](global-flags.md) are supported. Use `--dry-run` to preview the result without side effects, or `--json` to get machine-readable output.

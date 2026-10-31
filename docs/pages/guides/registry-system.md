@@ -267,14 +267,14 @@ Anything the local config does not mention keeps coming from the registry, so a
 project can change one setting, one commit type, or one field of a type.
 
 ```toml
-# registry: [commit.types.fix] description = "A bug fix", bump = "Patch"
+# registry: [commit.types.fix] description = "A bug fix", bump = "patch"
 
 # .cwizard.toml
 [commit]
 subject_max_length = 72        # changes one value; types and scopes still come from the registry
 
 [commit.types.fix]
-bump = "Minor"                 # changes one field; description etc. stay from the registry
+bump = "minor"                 # changes one field; description etc. stay from the registry
 
 [commit.types.docs]            # adds a type the registry does not have
 description = "Documentation"
