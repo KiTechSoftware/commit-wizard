@@ -1,3 +1,5 @@
+//! `cw config list`: lists the settings of one file, or with `--effective` the merged result and the layer each value came from.
+
 use std::time::Instant;
 
 use scriba::Table;

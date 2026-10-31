@@ -1,3 +1,5 @@
+//! `cw check`: validates a range of commits against the commit rules and fails with a validation error when any break them.
+
 use std::time::Instant;
 
 use crate::{

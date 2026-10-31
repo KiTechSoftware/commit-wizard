@@ -20,6 +20,10 @@ We focus on:
 
 Your branch name does **not** need to follow internal naming conventions.
 
+New to the code? Read [ARCHITECTURE.md](ARCHITECTURE.md) first: it explains the layers, how a command runs, and how to add one.
+
+If you change `README.md`, run `scripts/sync-readme.sh` too. The crate ships a copy of it, and a test fails if the two differ.
+
 ---
 
 ## 🌿 Where to open your PR

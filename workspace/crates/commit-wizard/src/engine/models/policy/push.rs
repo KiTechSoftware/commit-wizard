@@ -1,3 +1,5 @@
+//! Policy model for pushing.
+
 use crate::engine::models::runtime::ResolvedConfig;
 
 #[derive(Debug, Clone)]

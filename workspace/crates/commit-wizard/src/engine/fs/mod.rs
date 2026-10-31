@@ -1,3 +1,5 @@
+//! File access for the engine. `write_text` writes atomically (temporary file, then rename) and is the only way user files should be written.
+
 use std::fs;
 use std::path::Path;
 

@@ -1,3 +1,5 @@
+//! Lets the `Ui` act as the engine's logger.
+
 use crate::engine::LoggerTrait;
 
 impl LoggerTrait for super::Ui {

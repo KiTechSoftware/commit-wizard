@@ -1,3 +1,5 @@
+//! `cw init`: creates the project config, the user config, a rules file or a registry skeleton.
+
 use std::time::Instant;
 
 use crate::{

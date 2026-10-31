@@ -1,3 +1,5 @@
+//! Finds and loads the global, project and standard config files.
+
 use crate::engine::{
     LoggerTrait,
     config::{

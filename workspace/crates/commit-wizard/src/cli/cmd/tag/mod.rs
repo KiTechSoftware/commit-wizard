@@ -1,3 +1,5 @@
+//! `cw tag`: creates the next version tag. Defines the arguments and hands them to the use case.
+
 use clap::Args as ClapArgs;
 
 use crate::{

@@ -1,10 +1,10 @@
-/// Build a `BaseConfig` from environment variables (SRS §4).
-///
-/// This layer sits between CLI args and repo config in the resolution stack:
-///   CLI args > ENV > repo config > registry config > global config > defaults
-///
-/// Only fields with a corresponding set ENV variable are populated; everything
-/// else remains `None` so that lower-priority layers can still apply.
+//! Build a `BaseConfig` from environment variables (SRS §4).
+//!
+//! This layer sits between CLI args and repo config in the resolution stack:
+//!   CLI args > ENV > repo config > registry config > global config > defaults
+//!
+//! Only fields with a corresponding set ENV variable are populated; everything
+//! else remains `None` so that lower-priority layers can still apply.
 use std::env;
 
 use crate::engine::{

@@ -1,3 +1,5 @@
+//! `cw config get/set/unset/show/path`: read and change single settings in the project or global config file.
+
 use std::time::Instant;
 
 use crate::{

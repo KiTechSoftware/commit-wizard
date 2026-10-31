@@ -1,3 +1,5 @@
+//! `cw changelog`: generates a changelog. Defines the arguments and hands them to the use case.
+
 use clap::{Args as ClapArgs, ValueEnum};
 
 use crate::{

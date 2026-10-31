@@ -1,3 +1,5 @@
+//! Policy model for changelog generation: sections, headers, grouping and output format.
+
 use crate::engine::models::{policy::enforcement::ChangelogFormat, runtime::ResolvedConfig};
 use std::collections::BTreeMap;
 

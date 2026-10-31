@@ -1,3 +1,5 @@
+//! The families of error, each of which has its own exit status.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

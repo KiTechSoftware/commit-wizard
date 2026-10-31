@@ -1,3 +1,5 @@
+//! The global flags (`--dry-run`, `--yes`, `--force`, output format, colour and log level).
+
 #[derive(Debug, Clone)]
 pub struct RuntimeOptions {
     dry_run: bool,

@@ -1,3 +1,5 @@
+//! What the engine needs to ask a question; implemented by `infra`.
+
 use crate::engine::Result;
 pub trait PromptTrait {
     fn text(&self, message: &str, default: Option<&str>, help: Option<&str>) -> Result<String>;

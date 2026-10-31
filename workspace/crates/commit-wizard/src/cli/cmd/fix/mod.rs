@@ -1,3 +1,5 @@
+//! `cw fix`: rewrites commit messages that break the rules. Defines the arguments and hands them to the use case.
+
 use clap::Args as ClapArgs;
 
 use crate::{

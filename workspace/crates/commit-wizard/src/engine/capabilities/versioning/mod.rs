@@ -1,3 +1,5 @@
+//! Classifies commits into a bump level and calculates the next version.
+
 use crate::engine::capabilities::commit::check::ParsedHeader;
 use crate::engine::models::{
     git::CommitSummary,

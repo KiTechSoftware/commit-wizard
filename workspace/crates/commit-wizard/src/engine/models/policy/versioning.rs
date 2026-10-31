@@ -1,3 +1,5 @@
+//! Semantic versions, including prereleases, and the versioning policy.
+
 use std::cmp::Ordering;
 
 use crate::engine::models::policy::enforcement::BumpLevel;

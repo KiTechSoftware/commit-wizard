@@ -1,3 +1,5 @@
+//! `Runtime`: the global flags, discovered paths and every config layer, and the resolution of them into the active configuration.
+
 use std::path::PathBuf;
 
 use crate::engine::{

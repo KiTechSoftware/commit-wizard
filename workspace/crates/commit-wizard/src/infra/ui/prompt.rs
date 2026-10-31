@@ -1,3 +1,5 @@
+//! Lets the `Ui` ask questions for the engine, honouring the prompt policy so a script is never left waiting.
+
 use crate::{
     engine::{Error, ErrorCode, PromptTrait},
     infra::ui::{PromptPolicy, UiResult, map_scriba_error_to_cw_error},

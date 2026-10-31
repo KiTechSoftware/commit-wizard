@@ -1,3 +1,5 @@
+//! `cw doctor`: diagnoses configuration and environment problems. Defines the arguments and hands them to the use case.
+
 use clap::{Args as ClapArgs, Subcommand};
 
 use crate::{

@@ -1,3 +1,5 @@
+//! Policy model for the reserved `[hooks]` settings (parsed, not yet used by a command).
+
 use crate::engine::models::runtime::ResolvedConfig;
 
 #[derive(Debug, Clone, Default)]

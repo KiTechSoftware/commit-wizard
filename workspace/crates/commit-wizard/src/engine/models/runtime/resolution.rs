@@ -1,3 +1,5 @@
+//! The results of resolving the runtime: the resolved config, the paths and the config options found on disk.
+
 use crate::engine::{
     config::{BaseConfig, RulesConfig},
     constants::app_config_dir,

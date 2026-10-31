@@ -1,3 +1,5 @@
+//! Decides whether a push is allowed under the branch and commit policies.
+
 use crate::engine::{
     capabilities::commit::check::ValidatedCommit,
     models::policy::{Policy, check::CommitCheckEnforcement},

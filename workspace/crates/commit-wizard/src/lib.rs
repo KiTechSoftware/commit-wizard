@@ -1,36 +1,23 @@
-//! # Commit Wizard
+#![doc = include_str!("../README.md")]
 //!
-//! **A spellbook for your commits.** `commit-wizard` installs a command-line tool, `cw`, for
-//! [Conventional Commits](https://www.conventionalcommits.org/), semantic versioning and
-//! changelog automation.
-//!
-//! ```text
-//! cargo install commit-wizard --locked
-//! cw init        # guided setup
-//! cw commit      # write a Conventional Commit, step by step
-//! cw check       # validate history; exits non-zero if any commit breaks the rules
-//! cw tag         # work out the next version and tag it
-//! cw changelog   # write the changelog from your tags
-//! ```
-//!
-//! The user manual, with every command and the full configuration schema, is at
-//! <https://commit-wizard.kitechsoftware.com>.
+//! ---
 //!
 //! ## This is a tool, not a library
 //!
 //! The code is published as a library crate only so that the `cw` binary, its tests and
-//! docs.rs can share it. The modules below are an implementation detail and carry **no
-//! stability guarantee**: they may change in any release, patch releases included. If you want
-//! to build on `cw`, depend on its command line and its configuration files, not on this API.
+//! docs.rs can share it. Everything except [`cli::run`] is hidden from these docs and carries
+//! **no stability guarantee**: it may change in any release, patch releases included. If you
+//! want to build on `cw`, depend on its command line and its configuration files, not on this
+//! API.
 //!
-//! ## How the code is organised
+//! ## Contributing to the code
 //!
-//! For contributors, the crate is layered from the outside in:
-//!
-//! - [`cli`]: argument parsing and command dispatch (`cw <command>`)
-//! - `core`: the use cases behind each command, and the context they run in
-//! - `engine`: models, configuration, validation rules and other logic with no I/O
-//! - `infra`: Git, terminal and file-system adapters
+//! The crate is layered from the outside in: `cli` (argument parsing and dispatch), `core`
+//! (the use case behind each command), `engine` (models, configuration and rules, with no I/O)
+//! and `infra` (Git, terminal and file-system adapters).
+//! [ARCHITECTURE.md](https://github.com/KiTechSoftware/commit-wizard/blob/main/ARCHITECTURE.md)
+//! walks through how a command flows through them and how to add one, and
+//! `cargo doc --document-private-items --open` shows the hidden modules.
 //!
 //! ## What `cw` enforces
 //!

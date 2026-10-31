@@ -1,3 +1,5 @@
+//! `cw doctor`: checks the environment and configuration and reports problems; `fix` repairs the ones it can.
+
 use std::time::Instant;
 
 use crate::{

@@ -1,3 +1,5 @@
+//! `cw push`: applies the branch and commit policies before pushing.
+
 use std::time::Instant;
 
 use crate::{

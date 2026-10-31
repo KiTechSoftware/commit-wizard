@@ -1,3 +1,5 @@
+//! `cw config`: shows and edits configuration. Defines the arguments and hands them to the use case.
+
 use clap::{Args as ClapArgs, Subcommand};
 
 use crate::{

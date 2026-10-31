@@ -1,3 +1,5 @@
+//! Plain data the engine receives from Git: commit summaries and changed files.
+
 #[derive(Debug, Clone)]
 pub struct CommitSummary {
     pub hash: String,

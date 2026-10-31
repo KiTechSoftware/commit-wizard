@@ -87,13 +87,13 @@ See the manual for the full schema.
 
 ## Contributing
 
-Contributions are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Contributions are welcome; please read [CONTRIBUTING.md](https://github.com/KiTechSoftware/commit-wizard/blob/main/CONTRIBUTING.md) first.
 
 ## License
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/KiTechSoftware/commit-wizard/blob/main/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE](https://github.com/KiTechSoftware/commit-wizard/blob/main/LICENSE) or <http://opensource.org/licenses/MIT>)
 
 at your option.

@@ -1,3 +1,5 @@
+//! `cw add`: stages and unstages files. Defines the arguments and hands them to the use case.
+
 use std::path::PathBuf;
 
 use crate::core::usage;

@@ -1,3 +1,5 @@
+//! Builds the files `cw init` writes for a project, user, rules or registry setup.
+
 use std::path::{Path, PathBuf};
 
 use crate::engine::{

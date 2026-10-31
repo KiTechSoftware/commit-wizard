@@ -1,3 +1,5 @@
+//! Where config files live and how they are found, whichever of TOML, YAML or JSON they use.
+
 use crate::engine::{
     constants::{
         CACHE_DIR_NAME, CONFIG_DIR_NAME, CONFIG_FILE_NAME, CONFIG_STEM, PROJECT_CONFIG_FILE_NAME,

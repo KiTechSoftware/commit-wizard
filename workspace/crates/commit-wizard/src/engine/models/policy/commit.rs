@@ -1,3 +1,5 @@
+//! Policy model for commits: types, scopes, subject length, tickets, breaking changes and header format.
+
 use crate::engine::{
     constants::DEFAULT_COMMIT_BUMP,
     models::{

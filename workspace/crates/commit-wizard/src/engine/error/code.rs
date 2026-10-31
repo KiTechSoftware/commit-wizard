@@ -1,3 +1,5 @@
+//! Every `ErrorCode`, declared once with its kind, number and message, and the exit status each kind maps to.
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,5 @@
+//! Policy model for branch rules.
+
 use crate::engine::models::runtime::ResolvedConfig;
 
 #[derive(Debug, Clone)]

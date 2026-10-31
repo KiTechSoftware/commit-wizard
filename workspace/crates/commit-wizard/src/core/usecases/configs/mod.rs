@@ -1,3 +1,5 @@
+//! Configuration use cases behind `cw init` and `cw config`.
+
 pub mod edit;
 pub mod init;
 pub mod list;

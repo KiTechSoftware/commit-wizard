@@ -1,3 +1,5 @@
+//! Constants: application name, defaults, emoji, environment variable names and config file paths.
+
 pub mod defaults;
 pub mod emoji;
 pub mod env;

@@ -1,3 +1,5 @@
+//! Built-in default values for the policy settings.
+
 //
 // ──────────────────────────────────────────────────────────────────────────────
 // General

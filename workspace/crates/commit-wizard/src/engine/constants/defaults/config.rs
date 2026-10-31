@@ -1,3 +1,5 @@
+//! Built-in default values for the commit types, branches, and changelog sections.
+
 use std::collections::{BTreeMap, HashMap};
 
 use crate::engine::constants::{

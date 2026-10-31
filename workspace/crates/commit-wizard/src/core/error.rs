@@ -1,3 +1,5 @@
+//! Turns an engine error into what the user sees: the report printed on stderr and the process exit status (see `engine::error` for the code ranges).
+
 use std::process::ExitCode;
 
 use crate::engine::Error;

@@ -1,3 +1,5 @@
+//! The versioned file envelopes that config files deserialise into.
+
 use serde::{Deserialize, Serialize};
 
 use crate::engine::Result;

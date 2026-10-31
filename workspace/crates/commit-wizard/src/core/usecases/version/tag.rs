@@ -1,3 +1,5 @@
+//! `cw tag`: works out the next version (release candidates included) and creates, signs and pushes the tag, asking about the open choices on a terminal.
+
 use std::time::Instant;
 
 use crate::{

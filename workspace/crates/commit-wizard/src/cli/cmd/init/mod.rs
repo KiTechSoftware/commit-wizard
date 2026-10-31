@@ -1,3 +1,5 @@
+//! `cw init`: creates a project or user config. Defines the arguments and hands them to the use case.
+
 use clap::{Args as ClapArgs, Subcommand, ValueEnum};
 use std::fmt;
 

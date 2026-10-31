@@ -1,3 +1,5 @@
+//! Policy models: the resolved configuration as plain structs that the use cases read.
+
 use crate::engine::models::runtime::ResolvedConfig;
 
 pub mod ai;

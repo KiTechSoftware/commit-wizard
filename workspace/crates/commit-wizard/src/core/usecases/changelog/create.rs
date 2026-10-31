@@ -1,3 +1,5 @@
+//! `cw changelog`: groups the commits between tags into releases and writes (or merges into) a changelog in Markdown or JSON, guiding the user through the open choices when run on a terminal.
+
 use std::{fs, path::PathBuf, time::Instant};
 
 use scriba::{SelectOption, SelectRequest};

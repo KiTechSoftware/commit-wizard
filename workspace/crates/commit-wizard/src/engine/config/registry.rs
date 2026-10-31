@@ -1,10 +1,10 @@
-/// Registry resolution (SRS §5).
-///
-/// Resolves registry configuration from CLI flags, ENV variables, and the
-/// project/global config. Supports both local-path registries and Git-URL
-/// registries (cloned/fetched into the user-level cache directory).
-///
-/// Precedence: CLI > ENV > config
+//! Registry resolution (SRS §5).
+//!
+//! Resolves registry configuration from CLI flags, ENV variables, and the
+//! project/global config. Supports both local-path registries and Git-URL
+//! registries (cloned/fetched into the user-level cache directory).
+//!
+//! Precedence: CLI > ENV > config
 use std::{
     path::{Path, PathBuf},
     process::Command,

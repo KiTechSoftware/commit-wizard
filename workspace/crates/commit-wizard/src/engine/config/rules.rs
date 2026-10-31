@@ -1,3 +1,5 @@
+//! The rules table and `@rules.<name>` substitution.
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};

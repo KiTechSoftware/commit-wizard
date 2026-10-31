@@ -1,3 +1,5 @@
+//! Policy model for the reserved `[ai]` settings (parsed, not yet used by a command).
+
 use crate::engine::models::{policy::enforcement::AiProvider, runtime::ResolvedConfig};
 
 #[derive(Debug, Clone)]

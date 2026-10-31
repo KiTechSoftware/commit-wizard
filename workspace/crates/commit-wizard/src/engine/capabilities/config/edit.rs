@@ -1,3 +1,5 @@
+//! Get, set and unset a single setting by dotted key, validating the value before it is written.
+
 use std::path::{Path, PathBuf};
 
 use toml::Value;

@@ -1,3 +1,5 @@
+//! The section types `BaseConfig` is made of (`[commit]`, `[commit.types]`, `[commit.scopes]`, `[commit.breaking]` and so on).
+
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Deserializer, Serialize};

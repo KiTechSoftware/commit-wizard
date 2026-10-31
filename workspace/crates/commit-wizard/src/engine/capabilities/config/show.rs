@@ -1,3 +1,5 @@
+//! Resolves config file paths and renders a config for display.
+
 use std::path::{Path, PathBuf};
 
 use crate::engine::{

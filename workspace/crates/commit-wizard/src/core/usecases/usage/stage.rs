@@ -1,3 +1,5 @@
+//! `cw add`: stages and unstages files from paths, `--all`, or a picker on a terminal.
+
 use std::{path::PathBuf, time::Instant};
 
 use crate::{

@@ -1,3 +1,5 @@
+//! Names of the `CW_*` environment variables.
+
 pub const ENV_VAR_PREFIX: &str = "CW_";
 
 // Meta / runtime control

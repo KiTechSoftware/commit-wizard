@@ -1,3 +1,5 @@
+//! `BaseConfig`, the typed form of every config file, and the merge that combines layers.
+
 pub mod types;
 pub use types::*;
 

@@ -1,3 +1,5 @@
+//! The enumerations that settings choose between (scope mode, ticket source, bump level and so on).
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

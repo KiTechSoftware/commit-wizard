@@ -1,3 +1,5 @@
+//! Pure staging logic: expands requested paths, decides what is staged or unstaged, and plans the transitions between the two.
+
 use std::collections::BTreeSet;
 
 use crate::engine::models::git::Change;

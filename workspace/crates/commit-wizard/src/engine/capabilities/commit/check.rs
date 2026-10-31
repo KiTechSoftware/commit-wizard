@@ -1,3 +1,5 @@
+//! Parses commit headers, bodies and footers and validates them against a `CommitModel`, reporting each `CommitViolation`.
+
 use crate::engine::models::{
     git::CommitSummary,
     policy::commit::{CommitModel, ScopeRequirement},

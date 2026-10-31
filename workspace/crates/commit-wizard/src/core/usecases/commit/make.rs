@@ -1,3 +1,5 @@
+//! `cw commit`: builds a Conventional Commit message from flags, or by asking for the missing parts on a terminal, and creates the commit.
+
 use crate::engine::capabilities::commit::fix::build_header;
 use std::time::Instant;
 
