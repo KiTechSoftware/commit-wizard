@@ -4,8 +4,8 @@ use crate::{
     core::{Context, CoreResult},
     engine::{
         capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
-        config::ConfigFormat,
         config::resolver::{load_project_config, load_rules_config, load_standard_config},
+        config::{ConfigFormat, lint::unknown_top_level_keys},
         constants::{
             competing_project_configs,
             emoji::{ERROR, INFO, SUCCESS, WARN},
@@ -126,6 +126,24 @@ pub fn run(ctx: &Context) -> CoreResult<()> {
         }
         None => CheckResult::info("Project config", "not found — default policy will be used"),
     });
+
+    for (label, path) in [
+        ("Project config", repo_config_path.clone()),
+        ("Global config", resolve_global_config_path().ok()),
+    ] {
+        if let Some(path) = path
+            && let Ok(raw) = std::fs::read_to_string(&path)
+        {
+            for unknown in unknown_top_level_keys(ConfigFormat::from_path(&path), &raw) {
+                let detail = format!("{}: {}", path.display(), unknown.describe());
+                // The project config already logs this when it loads; say it for the global one.
+                if label == "Global config" {
+                    ui.logger().warn(&detail);
+                }
+                checks.push(CheckResult::warn(label, detail));
+            }
+        }
+    }
 
     if let Some(chosen) = &repo_config_path {
         let ignored = competing_project_configs(chosen);

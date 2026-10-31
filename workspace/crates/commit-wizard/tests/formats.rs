@@ -296,3 +296,74 @@ fn a_registry_may_use_yaml_config_files() {
     assert!(out.status.success(), "{}", text(&out));
     assert_eq!(repo.subjects()[0], "wip: tracked work");
 }
+
+// --- misspelled top-level tables ------------------------------------------
+
+#[test]
+fn a_misspelled_top_level_table_is_warned_about_with_a_suggestion() {
+    for (name, contents) in [
+        (".cwizard.toml", "[comit]\nsubject_max_length = 5\n"),
+        (".cwizard.yaml", "comit:\n  subject_max_length: 5\n"),
+        (".cwizard.json", r#"{"comit":{"subject_max_length":5}}"#),
+    ] {
+        let repo = staged();
+        repo.write(name, contents);
+
+        let out = repo.cw(&["commit", "-t", "feat", "-m", "still works"]);
+        let output = text(&out);
+        assert!(output.contains("[warn]"), "{name}: {output}");
+        assert!(
+            output.contains("unknown top-level key `comit`"),
+            "{name}: {output}"
+        );
+        assert!(
+            output.contains("did you mean `commit`?"),
+            "{name}: {output}"
+        );
+        // A warning, not an error: the command still runs, on defaults.
+        assert!(out.status.success(), "{name}: {output}");
+    }
+}
+
+#[test]
+fn doctor_counts_an_unknown_top_level_key_as_a_warning() {
+    let repo = staged();
+    repo.write(".cwizard.toml", "[telemetry]\nx = 1\n");
+
+    let report = text(&repo.cw(&["doctor"]));
+
+    assert!(report.contains("warnings: 1"), "{report}");
+    assert!(report.contains("telemetry"), "{report}");
+}
+
+#[test]
+fn doctor_also_checks_the_global_config() {
+    let repo = Repo::bare();
+    repo.write_global_file("config.toml", "[comit]\nsubject_max_length = 5\n");
+
+    let report = text(&repo.cw(&["doctor"]));
+
+    assert!(report.contains("warnings: 1"), "{report}");
+    assert!(report.contains("did you mean `commit`?"), "{report}");
+}
+
+#[test]
+fn valid_configs_produce_no_unknown_key_warning() {
+    for (name, contents) in [
+        (".cwizard.toml", WIP_TOML),
+        (".cwizard.yaml", WIP_YAML),
+        (".cwizard.json", WIP_JSON),
+    ] {
+        let repo = staged();
+        repo.write(name, contents);
+        let out = commit_wip(&repo);
+        assert!(
+            !text(&out).contains("unknown top-level key"),
+            "{name}: {}",
+            text(&out)
+        );
+    }
+    // So does a freshly generated config.
+    let generated = Repo::new();
+    assert!(!text(&generated.cw(&["doctor"])).contains("unknown top-level key"));
+}

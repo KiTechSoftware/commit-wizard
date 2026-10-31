@@ -1,6 +1,9 @@
 use crate::engine::{
     LoggerTrait,
-    config::{BaseConfig, ConfigFormat, ProjectConfig, RulesConfig, StandardConfig},
+    config::{
+        BaseConfig, ConfigFormat, ProjectConfig, RulesConfig, StandardConfig,
+        lint::unknown_top_level_keys,
+    },
     constants::{resolve_global_config_path, resolve_global_rules_path},
     error::{ErrorCode, Result},
 };
@@ -69,6 +72,12 @@ pub fn load_project_config(
                 Ok(config) => {
                     if let Some(logger) = logger {
                         logger.debug("load_project_config: Successfully parsed config");
+                        // Typos in a top-level table name would otherwise be ignored silently.
+                        for unknown in
+                            unknown_top_level_keys(ConfigFormat::from_path(path), &content)
+                        {
+                            logger.warn(&format!("{}: {}", path.display(), unknown.describe()));
+                        }
                     }
                     Some(config)
                 }

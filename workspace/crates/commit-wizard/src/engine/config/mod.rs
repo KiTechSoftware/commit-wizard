@@ -16,6 +16,7 @@
 pub mod base;
 pub mod env;
 pub mod format;
+pub mod lint;
 pub mod registry;
 pub mod resolver;
 pub mod rules;

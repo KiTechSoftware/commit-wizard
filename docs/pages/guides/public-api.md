@@ -58,6 +58,8 @@ commit:
 { "commit": { "subject_max_length": 72, "types": { "wip": { "description": "Work in progress", "bump": "Patch" } } } }
 ```
 
+A misspelled top-level table — `[comit]`, `chnagelog:` — is not an error, but cw warns about it with a suggestion (`unknown top-level key \`comit\`; did you mean \`commit\`?`) every time the config loads, and `cw doctor` counts it as a warning. The settings under it are ignored until it is fixed. A misspelled key *inside* a known table is still a hard error.
+
 If a directory holds more than one project config (say `.cwizard.toml` and `.cwizard.yaml`), cw uses the first by the order above — TOML, then YAML, then JSON, and `.cwizard.*` before `cwizard.*` — and warns that the others are ignored. `cw doctor` reports it too. Keep one file per scope.
 
 ## `[commit]` — Commit message policy
