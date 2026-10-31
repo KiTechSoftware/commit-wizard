@@ -60,6 +60,11 @@ impl Repo {
         let out = Command::new("git")
             .args(args)
             .current_dir(self.path())
+            // Like `cw()`: never read the developer's own git configuration.
+            .env("HOME", self.home.path())
+            .env("XDG_CONFIG_HOME", self.home.path())
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .envs(self.gnupg.iter().map(|g| ("GNUPGHOME", g.path())))
             .output()
             .unwrap();
         assert!(out.status.success(), "git {args:?}: {}", text(&out));

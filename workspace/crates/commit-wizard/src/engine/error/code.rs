@@ -119,6 +119,8 @@ error_codes! {
     GitRepoNotFound => (Git, 2, "Git repository not found"),
     GitCommandFailed => (Git, 3, "Git command failed"),
     GitPushBlocked => (Git, 4, "Push blocked by policy"),
+    HistoryPublished => (Git, 5, "Commits are already published"),
+    HistoryRewriteUnsupported => (Git, 6, "History cannot be rewritten safely"),
 
     ValidationFailed => (Validation, 1, "Validation failed"),
     CommitInvalid => (Validation, 2, "Commit is invalid"),

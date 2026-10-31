@@ -23,6 +23,7 @@ nav:
     - commit: commands/commit.md
     - config: commands/config.md
     - doctor: commands/doctor.md
+    - fix: commands/fix.md
     - init: commands/init.md
     - push: commands/push.md
     - tag: commands/tag.md

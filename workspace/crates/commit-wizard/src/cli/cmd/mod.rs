@@ -8,6 +8,7 @@
 //! - `commit`: Create a structured commit interactively
 //! - `config`: Manage configuration
 //! - `doctor`: Diagnose issues
+//! - `fix`: Correct commit messages that break the rules
 //! - `init`: Initialize project configuration
 //! - `push`: Push commits and tags
 //! - `tag`: Create and manage version tags
@@ -19,6 +20,7 @@ pub mod check;
 pub mod commit;
 pub mod config;
 pub mod doctor;
+pub mod fix;
 pub mod init;
 pub mod push;
 pub mod tag;

@@ -88,6 +88,7 @@ async fn async_run() -> ExitCode {
         args::Command::Commit(args) => cmd::commit::run(&ctx, args).await,
         args::Command::Config(args) => cmd::config::run(&ctx, args).await,
         args::Command::Doctor(args) => cmd::doctor::run(&ctx, args).await,
+        args::Command::Fix(args) => cmd::fix::run(&ctx, args).await,
         args::Command::Init(args) => cmd::init::run(&ctx, args).await,
         args::Command::Push(args) => cmd::push::run(&ctx, args).await,
         args::Command::Tag(args) => cmd::tag::run(&ctx, args).await,

@@ -293,6 +293,7 @@ See [Configuration Guides](../guides/configs/standard.md) for full reference and
 | `cw config show` | Inspect active configuration |
 | `cw init` | Create `.cwizard.toml` with a profile |
 | `cw doctor` | Diagnose issues and suggest fixes |
+| `cw fix` | Correct commit messages that break the rules |
 
 See [Command Reference](../commands/) for full details.
 

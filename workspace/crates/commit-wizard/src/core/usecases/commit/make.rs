@@ -1,3 +1,4 @@
+use crate::engine::capabilities::commit::fix::build_header;
 use std::time::Instant;
 
 use scriba::{SelectOption, SelectRequest};
@@ -339,28 +340,6 @@ pub fn run(
         .data("header", header);
 
     ui.print_with_meta(&content, Some(&meta), true)
-}
-
-fn build_header(
-    commit_type: &str,
-    scope: Option<&str>,
-    summary: &str,
-    breaking: bool,
-    emoji: Option<&str>,
-    use_emojis: bool,
-) -> String {
-    let type_prefix = if let (true, Some(e)) = (use_emojis, emoji) {
-        format!("{e} {commit_type}")
-    } else {
-        commit_type.to_string()
-    };
-
-    match (scope, breaking) {
-        (Some(scope), true) => format!("{type_prefix}({scope})!: {summary}"),
-        (Some(scope), false) => format!("{type_prefix}({scope}): {summary}"),
-        (None, true) => format!("{type_prefix}!: {summary}"),
-        (None, false) => format!("{type_prefix}: {summary}"),
-    }
 }
 
 fn build_commit_message(
