@@ -22,7 +22,12 @@ pub fn config_unset(ctx: &Context, key: &str, global: bool) -> CoreResult<()> {
         ConfigTarget::Project
     };
 
-    let project_config_path = ctx.project_config_path();
+    // The global config is a different file: never hand it the project path.
+    let project_config_path = if global {
+        None
+    } else {
+        ctx.project_config_path()
+    };
     let input = edit::ConfigUnsetInput {
         cwd: ctx.cwd(),
         target,
@@ -67,7 +72,12 @@ pub fn config_set(ctx: &Context, key: &str, value: &str, global: bool) -> CoreRe
     } else {
         ConfigTarget::Project
     };
-    let project_config_path = ctx.project_config_path();
+    // The global config is a different file: never hand it the project path.
+    let project_config_path = if global {
+        None
+    } else {
+        ctx.project_config_path()
+    };
     let input = edit::ConfigSetInput {
         cwd: ctx.cwd(),
         target,
@@ -145,7 +155,12 @@ pub fn config_show(ctx: &Context, global: bool) -> CoreResult<()> {
     } else {
         ConfigTarget::Project
     };
-    let project_config_path = ctx.project_config_path();
+    // The global config is a different file: never hand it the project path.
+    let project_config_path = if global {
+        None
+    } else {
+        ctx.project_config_path()
+    };
     let input = ConfigShowInput {
         cwd: ctx.cwd(),
         target,
@@ -183,7 +198,12 @@ pub fn config_get(ctx: &Context, key: &str, global: bool) -> CoreResult<()> {
     } else {
         ConfigTarget::Project
     };
-    let project_config_path = ctx.project_config_path();
+    // The global config is a different file: never hand it the project path.
+    let project_config_path = if global {
+        None
+    } else {
+        ctx.project_config_path()
+    };
     let input = edit::ConfigGetInput {
         cwd: ctx.cwd(),
         target,

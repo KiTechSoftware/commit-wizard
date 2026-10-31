@@ -306,6 +306,10 @@ impl Repo {
         std::fs::write(dir.join(name), contents).unwrap();
     }
 
+    pub fn home_path(&self) -> &Path {
+        self.home.path()
+    }
+
     pub fn write(&self, name: &str, contents: &str) {
         std::fs::write(self.path().join(name), contents).unwrap();
     }

@@ -588,10 +588,11 @@ impl Runtime {
         logger: &dyn LoggerTrait,
     ) -> crate::engine::error::Result<()> {
         // Precedence rules:
-        // 1. If no config sources: use policy::default (do nothing).
+        // 1. If no config sources: use the built-in defaults.
         // 2. If only global: use global as-is (no merging with defaults).
-        // 3-4. If registry/repo/cli: registry is base, repo/cli applied as overrides.
-        // 5-6. If registry/repo/cli exists: never use global or defaults as base.
+        // 3-4. If registry/repo/env/cli: registry is base, then repo, env and cli override it
+        //      in that order (cli wins).
+        // 5-6. If registry/repo/env/cli exists: never use global or defaults as base.
         // 7-9. Rules: cli > repo > registry > global (global only if registry has no rules).
 
         let global_base = self
@@ -600,46 +601,19 @@ impl Runtime {
             .global_config
             .as_ref()
             .and_then(|c| c.base.clone());
-        let registry_base = self
-            .resolution
-            .sources
-            .registries
-            .iter()
-            .find(|r| r.is_active)
-            .and_then(|r| r.config.as_ref())
-            .and_then(|c| c.base.clone());
-        let repo_base = self
-            .resolution
-            .sources
-            .repo_config
-            .as_ref()
-            .and_then(|c| c.base.clone());
-        let cli_base = self
-            .resolution
-            .sources
-            .cli_config
-            .as_ref()
-            .and_then(|c| c.base.clone());
 
-        // Check if any project-level (registry/repo/cli) config exists (Rules 5-6).
-        let has_registry_repo_or_cli =
-            registry_base.is_some() || repo_base.is_some() || cli_base.is_some();
+        // The layers that take part (Rules 5-6): registry, repo, env and cli. The
+        // global config is only used when none of them exists.
+        let layers = self.config_layers();
+        let has_registry_repo_or_cli = layers
+            .iter()
+            .any(|layer| layer.kind != ConfigLayerKind::Global);
 
         if has_registry_repo_or_cli {
-            // Rules 3-4: Registry as base, then apply repo and cli as overrides.
-            let base = {
-                let base = registry_base.unwrap_or_else(BaseConfig::empty);
-                let base = if let Some(r) = repo_base {
-                    r.merge(base)
-                } else {
-                    base
-                };
-                if let Some(c) = cli_base {
-                    c.merge(base)
-                } else {
-                    base
-                }
-            };
+            // Rules 3-4: lowest priority first, each layer overriding the ones below it.
+            let base = layers
+                .into_iter()
+                .fold(BaseConfig::empty(), |base, layer| layer.base.merge(base));
 
             // Rules 7-9: Determine which rules to use.
             // cli > repo > registry > global (global only if registry has no rules).
@@ -782,6 +756,100 @@ impl Runtime {
     pub fn set_explicit_registry_section(&mut self, registry_section: Option<String>) -> &mut Self {
         self.paths.explicit_registry_section = registry_section;
         self
+    }
+
+    /// The config layers that make up the resolved configuration, lowest
+    /// priority first: the active registry, the project config, environment
+    /// variables, then command-line flags. The global config is the only layer
+    /// when none of those exists.
+    pub fn config_layers(&self) -> Vec<ConfigLayer> {
+        let sources = &self.resolution.sources;
+        let mut layers = Vec::new();
+
+        if let Some(registry) = sources.registries.iter().find(|r| r.is_active)
+            && let Some(base) = registry.config.as_ref().and_then(|c| c.base.clone())
+        {
+            let mut location = format!("{}#{}", registry.url, registry.r#ref);
+            if let Some(section) = &registry.section {
+                location.push_str(&format!("/{section}"));
+            }
+            layers.push(ConfigLayer {
+                kind: ConfigLayerKind::Registry,
+                label: format!("registry:{}", registry.tag),
+                detail: location,
+                base,
+            });
+        }
+        if let Some(base) = sources.repo_config.as_ref().and_then(|c| c.base.clone()) {
+            layers.push(ConfigLayer {
+                kind: ConfigLayerKind::Project,
+                label: "project".to_string(),
+                detail: self
+                    .project_config_path()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_default(),
+                base,
+            });
+        }
+        if let Some(base) = sources.env_config.as_ref().and_then(|c| c.base.clone()) {
+            layers.push(ConfigLayer {
+                kind: ConfigLayerKind::Env,
+                label: "env".to_string(),
+                detail: "CW_* environment variables".to_string(),
+                base,
+            });
+        }
+        if let Some(base) = sources.cli_config.as_ref().and_then(|c| c.base.clone()) {
+            layers.push(ConfigLayer {
+                kind: ConfigLayerKind::Cli,
+                label: "cli".to_string(),
+                detail: "command-line flags".to_string(),
+                base,
+            });
+        }
+
+        if layers.is_empty()
+            && let Some(layer) = self.global_layer()
+        {
+            layers.push(layer);
+        }
+        layers
+    }
+
+    /// Layers that were found but do not take part, each with the reason.
+    pub fn skipped_layers(&self) -> Vec<(ConfigLayer, String)> {
+        let applied = self.config_layers();
+        if applied
+            .iter()
+            .any(|layer| layer.kind == ConfigLayerKind::Global)
+        {
+            return Vec::new();
+        }
+        match self.global_layer() {
+            Some(layer) if !applied.is_empty() => vec![(
+                layer,
+                "not applied: the global config is only used when no registry, project, env or cli config exists"
+                    .to_string(),
+            )],
+            _ => Vec::new(),
+        }
+    }
+
+    fn global_layer(&self) -> Option<ConfigLayer> {
+        let base = self
+            .resolution
+            .sources
+            .global_config
+            .as_ref()
+            .and_then(|c| c.base.clone())?;
+        Some(ConfigLayer {
+            kind: ConfigLayerKind::Global,
+            label: "global".to_string(),
+            detail: crate::engine::constants::resolve_global_config_path()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default(),
+            base,
+        })
     }
 
     pub fn project_config_path(&self) -> Option<PathBuf> {
