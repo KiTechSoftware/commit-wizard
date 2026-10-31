@@ -8,6 +8,24 @@ Bootstrap Commit Wizard config assets for a project, user, or registry. When run
 cw init [OPTIONS] [SUBCOMMAND]
 ```
 
+## Guided setup
+
+Run `cw init` on a terminal and it asks how your project works, then writes a config to match. A first run takes under a minute: press Enter to accept the recommended answer to each question.
+
+1. **Which profile fits your project?** — *Standard* (recommended), *Minimal* or *Full*.
+2. **Which file format do you prefer?** — TOML, YAML or JSON.
+3. **Which commit types will you use?** — all pre-selected; `feat` and `fix` are always kept because versioning and changelogs depend on them. (Skipped for *Minimal*, which lists no types.)
+4. **How should commit scopes work?** — *Optional*, *Required* or *Not used*.
+5. **Which branches are protected?** — comma-separated, patterns like `release/*` work.
+6. **Where should commit messages be checked?** — *Protected branches only* (recommended), *Every branch* or *Nowhere*.
+7. **Allow pushing straight to a protected branch?**
+8. **Customize more options?** — answer yes for the subject length, emojis before commit types, whether breaking changes need a description, whether a ticket reference is required, the tag prefix, and the changelog file.
+9. A last **Create `.cwizard.toml`?**
+
+If the file already exists you are asked whether to replace it; answering no leaves it untouched. Declining the final question writes nothing.
+
+Flags answer their own questions: `cw init --minimal --file-format yaml` skips the profile and format questions. Scripts, CI and `--yes`, `--ci` or `--non-interactive` skip the wizard and write the chosen profile exactly as before, so `cw init --yes` is the quick way to take every default. The wizard also runs for `cw init project` and `cw init config --global`; `rules` and `registry` are not guided.
+
 ## Subcommands
 
 | Subcommand | Description |

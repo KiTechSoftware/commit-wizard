@@ -3,7 +3,10 @@ use std::time::Instant;
 use crate::{
     core::{Context, CoreResult},
     engine::{
-        capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
+        capabilities::config::{
+            init::{self, ConfigContext, ConfigOption, ConfigSpec},
+            wizard::WizardAnswers,
+        },
         config::ConfigFormat,
         constants::{app_config_dir, paths::resolve_new_project_config_path},
     },
@@ -14,6 +17,8 @@ pub fn init_project_config(
     hidden: bool,
     profile: String,
     file_format: ConfigFormat,
+    answers: Option<WizardAnswers>,
+    overwrite: bool,
 ) -> CoreResult<()> {
     let ui = ctx.ui();
 
@@ -46,13 +51,14 @@ pub fn init_project_config(
         option: ConfigOption::Project,
         output_path: config_path.clone(),
         spec,
-        force: ctx.force(),
+        force: ctx.force() || overwrite,
         auto_yes: ctx.auto_yes(),
         dry_run: ctx.dry_run(),
         hidden,
         with_rules: false,
         registry_options: Default::default(),
         file_format,
+        answers,
     };
 
     let start = Instant::now();
@@ -96,6 +102,8 @@ pub fn init_config(
     global: bool,
     profile: String,
     file_format: ConfigFormat,
+    answers: Option<WizardAnswers>,
+    overwrite: bool,
 ) -> CoreResult<()> {
     let ui = ctx.ui();
 
@@ -119,13 +127,14 @@ pub fn init_config(
         },
         output_path: target.clone(),
         spec,
-        force: ctx.force(),
+        force: ctx.force() || overwrite,
         auto_yes: ctx.auto_yes(),
         dry_run: ctx.dry_run(),
         hidden: false,
         with_rules: false,
         registry_options: Default::default(),
         file_format,
+        answers,
     };
 
     let start = Instant::now();
@@ -193,6 +202,7 @@ pub fn init_rules(
         with_rules: true, // Include rules for this operation
         registry_options: Default::default(),
         file_format,
+        answers: None,
     };
 
     let start = Instant::now();
@@ -257,6 +267,7 @@ pub fn init_registry(
         with_rules,
         registry_options,
         file_format: ConfigFormat::Toml,
+        answers: None,
     };
 
     let start = Instant::now();

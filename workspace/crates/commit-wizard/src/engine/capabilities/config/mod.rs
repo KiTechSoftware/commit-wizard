@@ -3,3 +3,4 @@ pub mod effective;
 pub mod init;
 pub mod show;
 pub mod usage;
+pub mod wizard;

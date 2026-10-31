@@ -3,7 +3,13 @@ use std::fmt;
 
 use crate::{
     cli::CliResult,
-    core::{configs, context::Context},
+    core::{
+        configs::{
+            self,
+            wizard::{self, InitScope},
+        },
+        context::Context,
+    },
     engine::config::ConfigFormat,
 };
 
@@ -16,16 +22,17 @@ pub struct Args {
     #[arg(long, conflicts_with_all = ["minimal", "profile"])]
     pub full: bool,
 
-    #[arg(long, default_value_t = InitProfile::Standard, value_enum)]
-    pub profile: InitProfile,
+    /// Profile to start from (default: standard). Skips the profile question.
+    #[arg(long, value_enum)]
+    pub profile: Option<InitProfile>,
 
     /// Set multiple keys: --set policy.require_conventional_for_all_commits=true
     #[arg(long = "set", value_parser = clap::builder::NonEmptyStringValueParser::new())]
     pub sets: Vec<String>,
 
     /// Format of the config file to create (ignored when --config names a file)
-    #[arg(long, global = true, value_enum, default_value_t = FileFormat::Toml)]
-    pub file_format: FileFormat,
+    #[arg(long, global = true, value_enum)]
+    pub file_format: Option<FileFormat>,
 
     #[command(subcommand)]
     pub subcommand: Option<InitSubcommand>,
@@ -65,11 +72,12 @@ pub enum InitProfile {
 }
 
 impl InitProfile {
-    pub fn resolved(args: &Args) -> Self {
+    /// The profile a flag asked for, if any.
+    pub fn chosen(args: &Args) -> Option<Self> {
         if args.minimal {
-            Self::Minimal
+            Some(Self::Minimal)
         } else if args.full {
-            Self::Full
+            Some(Self::Full)
         } else {
             args.profile
         }
@@ -114,15 +122,49 @@ pub enum InitSubcommand {
 }
 
 pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
-    let profile = InitProfile::resolved(&args).to_string();
-    let file_format = ConfigFormat::from(args.file_format);
+    let profile_flag = InitProfile::chosen(&args).map(|profile| profile.to_string());
+    let format_flag = args.file_format.map(ConfigFormat::from);
+
+    // Guided: a person at a terminal is asked how the project works. Flags
+    // answer their own question, and scripts, --yes, --ci and --non-interactive
+    // skip the wizard entirely.
+    let scope = match &args.subcommand {
+        None => Some(InitScope::Project { hidden: true }),
+        Some(InitSubcommand::Project { hidden }) => Some(InitScope::Project { hidden: *hidden }),
+        Some(InitSubcommand::Config { global: true }) => Some(InitScope::Global),
+        _ => None,
+    };
+    let plan = match scope {
+        Some(scope) if ctx.is_interactive() && !ctx.auto_yes() => {
+            match wizard::guide(ctx, scope, profile_flag.clone(), format_flag)? {
+                Some(plan) => Some(plan),
+                None => return Ok(()),
+            }
+        }
+        _ => None,
+    };
+
+    let profile = plan
+        .as_ref()
+        .map(|plan| plan.profile.clone())
+        .or(profile_flag)
+        .unwrap_or_else(|| InitProfile::default().to_string());
+    let file_format = plan
+        .as_ref()
+        .map(|plan| plan.file_format)
+        .or(format_flag)
+        .unwrap_or_default();
+    let (answers, overwrite) = match plan {
+        Some(plan) => (Some(plan.answers), plan.overwrite),
+        None => (None, false),
+    };
 
     match args.subcommand {
         Some(InitSubcommand::Project { hidden }) => {
-            configs::init_project_config(ctx, hidden, profile, file_format)
+            configs::init_project_config(ctx, hidden, profile, file_format, answers, overwrite)
         }
         Some(InitSubcommand::Config { global }) => {
-            configs::init_config(ctx, global, profile, file_format)
+            configs::init_config(ctx, global, profile, file_format, answers, overwrite)
         }
         Some(InitSubcommand::Rules { global }) => {
             configs::init_rules(ctx, global, profile, file_format)
@@ -132,6 +174,6 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
             with_rules,
             section,
         }) => configs::init_registry(ctx, path, with_rules, section, profile),
-        None => configs::init_project_config(ctx, true, profile, file_format),
+        None => configs::init_project_config(ctx, true, profile, file_format, answers, overwrite),
     }
 }

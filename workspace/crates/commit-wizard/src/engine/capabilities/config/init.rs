@@ -47,6 +47,8 @@ pub struct ConfigContext {
     /// Format for files init chooses the name of (the global config and rules).
     /// Project files are rendered in the format their path's extension implies.
     pub file_format: ConfigFormat,
+    /// Answers from the guided wizard, applied on top of the profile.
+    pub answers: Option<super::wizard::WizardAnswers>,
 }
 
 pub struct ConfigPayload {
@@ -71,6 +73,9 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
                 ConfigSpec::Standard => ProjectConfig::standard(),
                 ConfigSpec::Full => ProjectConfig::full(),
             };
+            if let Some(answers) = &context.answers {
+                input.inner.config = answers.apply(&input.inner.config)?;
+            }
             if context.with_rules {
                 input.inner.rules = Some(rules);
             }
@@ -96,6 +101,14 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
                 ConfigSpec::Minimal => StandardConfig::minimal(),
                 ConfigSpec::Standard => StandardConfig::standard(),
                 ConfigSpec::Full => StandardConfig::full(),
+            };
+
+            let input = match &context.answers {
+                Some(answers) => StandardConfig {
+                    inner: answers.apply(&input.inner)?,
+                    ..input
+                },
+                None => input,
             };
 
             let root = app_config_dir()?;

@@ -439,6 +439,7 @@ pub fn fix(ctx: &Context) -> CoreResult<()> {
                 with_rules: false,
                 registry_options: Default::default(),
                 file_format: ConfigFormat::from_path(&output_path),
+                answers: None,
             })?;
             let verb = if ctx.dry_run() {
                 "Would create"
