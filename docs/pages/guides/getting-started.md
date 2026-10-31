@@ -77,7 +77,8 @@ Exit status: `0` = all pass, non-zero = violations found.
 
 ```sh
 cw bump
-# Output: v1.2.0 (detected from commits)
+# [ok] Version bump: 1.1.0 → 1.2.0   (next_tag: v1.2.0)
+# Add --json for a machine-readable result
 ```
 
 ### 6. Create release tag
