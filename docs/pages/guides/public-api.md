@@ -233,8 +233,8 @@ footer_key = "BREAKING CHANGE"
 #### `commit.breaking.footer_keys`
 
 **Type:** `array of strings`  
-**Default:** `[]`  
-**Description:** Additional footer tokens to recognize as breaking changes.
+**Default:** `["BREAKING CHANGE", "BREAKING-CHANGE"]` when neither this nor `footer_key` is set  
+**Description:** Footer tokens recognised as breaking changes. When set, they are used together with `footer_key` instead of the defaults.
 
 ```toml
 [commit.breaking]
@@ -394,41 +394,41 @@ pattern = "^(feature|bugfix|hotfix)/[a-z0-9-]+$"
 ### `pr.title.require_conventional`
 
 **Type:** `bool`  
-**Default:** `false`  
+**Default:** unset
 **Description:** PR title must follow Conventional Commit format.
 
 ### `pr.title.require_ticket`
 
 **Type:** `bool`  
-**Default:** `false`  
+**Default:** unset
 **Description:** PR title must include a ticket reference.
 
 ### `pr.title.scope_mode`
 
 **Type:** enum (`"disabled"`, `"optional"`, `"required"`)  
-**Default:** `"optional"`
+**Default:** unset
 
 ### `pr.branch.check_source`
 
 **Type:** `bool`  
-**Default:** `true`  
+**Default:** unset
 **Description:** Validate source branch naming.
 
 ### `pr.branch.check_target`
 
 **Type:** `bool`  
-**Default:** `true`  
+**Default:** unset
 **Description:** Validate target branch is allowed.
 
 ### `pr.branch.source_pattern`
 
 **Type:** `string`  
-**Default:** none
+**Default:** unset
 
 ### `pr.branch.target_allowed`
 
 **Type:** `array of strings`  
-**Default:** `["main"]`
+**Default:** unset
 
 ---
 
@@ -543,7 +543,7 @@ tag_prefix = "release-"  # Tags: release-1.0.0
 ### `changelog.header.description`
 
 **Type:** `string`  
-**Default:** `""`
+**Default:** none
 
 ### `changelog.layout.group_by`
 
