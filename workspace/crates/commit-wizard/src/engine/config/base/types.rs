@@ -12,7 +12,7 @@ where
     D: Deserializer<'de>,
 {
     let s = Option::<String>::deserialize(deserializer)?;
-    Ok(s.and_then(|s| if s.is_empty() { None } else { Some(s) }))
+    Ok(s.filter(|s| !s.is_empty()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +37,10 @@ pub struct CommitConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CommitTypeConfig {
+    /// Set to `false` to drop a type inherited from a lower layer (for example
+    /// a registry) without redefining the rest of the type list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
     #[serde(
         default,
         deserialize_with = "deserialize_optional_string",
@@ -463,6 +467,14 @@ pub struct RegistryConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub section: Option<String>,
+    /// Fail hard when the active registry cannot be loaded. Default: warn and
+    /// continue with the remaining configuration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+    /// Keep registries in the local cache. Default: true. When false the
+    /// registry is cloned fresh on every run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -140,6 +140,7 @@ pub fn load_registry(
     spec: &RegistrySpec,
     cache_dir: &Path,
     state_file: &Path,
+    use_cache: bool,
     logger: &dyn LoggerTrait,
 ) -> Result<RegistryLoadResult, Error> {
     logger.debug(&format!(
@@ -154,7 +155,7 @@ pub fn load_registry(
     } else {
         // Evict stale cache when the ref has changed for the same URL
         evict_stale_cache(spec, state_file, logger);
-        load_git_registry(spec, cache_dir, logger)
+        load_git_registry(spec, cache_dir, use_cache, logger)
     }
 }
 
@@ -250,10 +251,17 @@ fn load_local_registry(
 fn load_git_registry(
     spec: &RegistrySpec,
     cache_dir: &Path,
+    use_cache: bool,
     logger: &dyn LoggerTrait,
 ) -> Result<RegistryLoadResult, Error> {
     let registry_id = registry_cache_id(&spec.url, &spec.r#ref);
     let registry_path = cache_dir.join("registries").join(&registry_id);
+
+    // Caching disabled: always start from a fresh clone.
+    if !use_cache && registry_path.exists() {
+        logger.debug("[registry] cache disabled — removing cached copy");
+        let _ = std::fs::remove_dir_all(&registry_path);
+    }
 
     logger.debug(&format!(
         "[registry] cache path: {:?}, exists={}",
@@ -273,7 +281,13 @@ fn load_git_registry(
                 "[registry] cache hit, ref={} — checking for remote changes",
                 spec.r#ref
             ));
-            maybe_sync_registry(&registry_path, spec, logger)?;
+            // A failed sync is not fatal while a cached copy exists: keep using it.
+            if let Err(e) = maybe_sync_registry(&registry_path, spec, logger) {
+                logger.warn(&format!(
+                    "[registry] sync failed, using cached copy of {}: {e}",
+                    spec.url
+                ));
+            }
         }
     } else {
         // No cache: clone and checkout (unless it's a version tag, where --branch positions HEAD).

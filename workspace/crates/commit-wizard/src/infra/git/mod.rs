@@ -19,7 +19,10 @@ use git2::{
 
 use crate::engine::{
     Error, ErrorCode,
-    models::git::{Change, CommitSummary, FileStatus},
+    models::{
+        git::{Change, CommitSummary, FileStatus},
+        policy::versioning::Version,
+    },
 };
 
 /// A tag boundary with all commits that fall in the range `(prev_tag, tag]`.
@@ -159,7 +162,14 @@ impl Git {
             .tag_names(None)
             .map_err(|err| self.git2_error("tag_names", err))?;
 
+        // Only tags reachable from HEAD count, so tags from other branches
+        // never become the base of a version bump.
+        let Some(head) = repo.head().ok().and_then(|head| head.target()) else {
+            return Ok(None);
+        };
+
         let mut latest: Option<(String, git2::Time)> = None;
+        let version_of = |tag: &str| Version::parse(tag, "v");
 
         for tag_name in tags.iter().flatten() {
             let tag_ref = format!("refs/tags/{tag_name}");
@@ -173,10 +183,21 @@ impl Git {
                 continue;
             };
 
+            let reachable =
+                commit.id() == head || repo.graph_descendant_of(head, commit.id()).unwrap_or(false);
+            if !reachable {
+                continue;
+            }
+
             let time = commit.time();
 
+            // Newest commit wins; tags on the same second (or commit) fall
+            // back to the higher version instead of iteration order.
             match &latest {
-                Some((_, prev)) if time.seconds() <= prev.seconds() => {}
+                Some((_, prev)) if time.seconds() < prev.seconds() => {}
+                Some((prev_name, prev))
+                    if time.seconds() == prev.seconds()
+                        && version_of(tag_name) <= version_of(prev_name) => {}
                 _ => latest = Some((tag_name.to_string(), time)),
             }
         }
@@ -218,7 +239,12 @@ impl Git {
             .map_err(|err| self.git2_error("signature", err))?;
 
         repo.tag(name, &obj, &sig, message, false)
-            .map_err(|err| self.git2_error("tag", err))?;
+            .map_err(|err| match err.code() {
+                git2::ErrorCode::Exists => ErrorCode::ReleaseTagExists
+                    .error()
+                    .with_context("tag", name.to_string()),
+                _ => self.git2_error("tag", err),
+            })?;
 
         Ok(())
     }

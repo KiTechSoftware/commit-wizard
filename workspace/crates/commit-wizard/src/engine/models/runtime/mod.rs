@@ -232,6 +232,7 @@ impl Runtime {
                     repo_config: None,
                     global_config: None,
                     registries: Vec::new(),
+                    registry_failures: Vec::new(),
                 },
                 config: None,
                 policy: Policy::default(),
@@ -289,7 +290,10 @@ impl Runtime {
 
     /// Resolve and load all available registries from every config layer,
     /// marking the one selected via precedence (CLI > ENV > repo > global) as active.
-    pub fn resolve_registry_source(&mut self, logger: &dyn LoggerTrait) {
+    pub fn resolve_registry_source(
+        &mut self,
+        logger: &dyn LoggerTrait,
+    ) -> crate::engine::error::Result<()> {
         let partial_base = self.build_partial_config_for_registry();
 
         let cli_url = self.explicit_registry().map(String::to_owned);
@@ -315,6 +319,17 @@ impl Runtime {
             }
             spec
         });
+
+        let required = partial_base.registry_required();
+        let use_cache = partial_base.registry_cache();
+
+        // A required registry that is named but cannot even be resolved is an error.
+        if required && active_spec.is_none() && partial_base.registry_use().is_some() {
+            return Err(crate::engine::error::ErrorCode::RegistryUnknown
+                .error()
+                .with_context("registry", partial_base.registry_use().unwrap_or_default())
+                .with_context("reason", "registry is required but not configured"));
+        }
 
         // Collect and deduplicate all registry specs from all config layers
         let mut all_specs = self.collect_all_registry_specs();
@@ -361,7 +376,13 @@ impl Runtime {
                 None => format!("{}##{}", spec_to_load.url, spec_to_load.r#ref),
             };
 
-            match load_registry(&spec_to_load, &cache_dir, &state_file_path, logger) {
+            match load_registry(
+                &spec_to_load,
+                &cache_dir,
+                &state_file_path,
+                use_cache,
+                logger,
+            ) {
                 Ok(result) => {
                     let status = if is_active { "[ACTIVE]" } else { "[available]" };
                     logger.debug(&format!(
@@ -404,9 +425,18 @@ impl Runtime {
                         is_active,
                     });
                 }
-                Err(e) => logger.error(&format!("Registry load failed ({name}): {e}")),
+                Err(e) if is_active && required => {
+                    return Err(e.with_context("registry", name.clone()));
+                }
+                Err(e) => {
+                    let message = format!("Registry load failed ({name}): {e}");
+                    logger.warn(&message);
+                    self.resolution.sources.registry_failures.push(message);
+                }
             }
         }
+
+        Ok(())
     }
 
     /// Build a merged BaseConfig from all layers except CLI (used to resolve the active registry
@@ -530,12 +560,15 @@ impl Runtime {
         specs
     }
 
-    pub fn resolve_available_sources(&mut self, logger: &dyn LoggerTrait) {
+    pub fn resolve_available_sources(
+        &mut self,
+        logger: &dyn LoggerTrait,
+    ) -> crate::engine::error::Result<()> {
         self.resolve_cli_source(Some(logger));
         self.resolve_env_source();
         self.resolve_repo_source(logger);
         self.resolve_global_source();
-        self.resolve_registry_source(logger);
+        self.resolve_registry_source(logger)
     }
 
     pub fn resolve_active_config(
@@ -677,8 +710,23 @@ impl Runtime {
             let path = self.project_config_path();
             self.resolution.config = Some(ResolvedConfig { path, rules, base });
             self.resolve_policy();
+        } else {
+            // Rule 1: No config sources at all (including a registry that failed to
+            // load): run on the built-in defaults rather than leaving the config
+            // unresolved, which every command treats as an error.
+            use crate::engine::config::resolver::merge_rules_into_base;
+            let rules = crate::engine::config::RulesConfig::default();
+            let base = merge_rules_into_base(
+                crate::engine::constants::defaults::config::standard_base_config(),
+                &rules,
+            )?;
+            self.resolution.config = Some(ResolvedConfig {
+                path: None,
+                rules,
+                base,
+            });
+            self.resolve_policy();
         }
-        // Rule 1: If no config sources, do nothing—policy remains at engine defaults.
 
         Ok(())
     }

@@ -93,6 +93,7 @@ async fn async_run() -> ExitCode {
     };
 
     if let Err(err) = result {
+        report_error(&err);
         return exit_code(&err);
     }
 

@@ -80,7 +80,7 @@ pub fn build_app_context(args: AppContextArgs) -> Result<Context> {
         }
     }
 
-    ctx.resolve_available_sources();
+    ctx.resolve_available_sources()?;
     ctx.resolve_active_config()?;
 
     Ok(ctx)

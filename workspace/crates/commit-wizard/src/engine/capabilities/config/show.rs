@@ -55,7 +55,11 @@ pub fn config_path(input: &ConfigPathInput<'_>) -> Result<ConfigPathOutput> {
 }
 
 pub fn config_show(input: &ConfigShowInput<'_>) -> Result<ConfigShowOutput> {
-    let path = resolve_config_path(input.target, input.cwd)?;
+    let path = if let Some(explicit_path) = input.explicit_path {
+        explicit_path.to_path_buf()
+    } else {
+        resolve_config_path(input.target, input.cwd)?
+    };
 
     if !path.exists() {
         return Err(ErrorCode::ConfigUnreadable

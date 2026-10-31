@@ -28,8 +28,10 @@ pub fn run(
 
     let non_interactive = !ctx.is_interactive() || (commit_type.is_some() && message.is_some());
 
-    // breaking message validation
+    // A breaking description is only mandatory when the policy requires the
+    // footer; otherwise it is optional, and written when provided.
     if breaking
+        && policy.breaking_footer_required
         && breaking_message
             .as_ref()
             .map(|s| s.trim().is_empty())
@@ -197,16 +199,20 @@ pub fn run(
         let msg = ui.text(
             "Describe the breaking change",
             None,
-            Some("Required when marking a commit as breaking"),
+            Some(if policy.breaking_footer_required {
+                "Required by current commit policy"
+            } else {
+                "Optional; leave empty to omit the BREAKING CHANGE footer"
+            }),
         )?;
         let trimmed = msg.trim().to_string();
-        if trimmed.is_empty() {
+        if trimmed.is_empty() && policy.breaking_footer_required {
             return Err(ErrorCode::InvalidInput
                 .error()
                 .with_context("field", "breaking_message")
                 .with_context("reason", "breaking change description cannot be empty"));
         }
-        (true, Some(trimmed))
+        (true, (!trimmed.is_empty()).then_some(trimmed))
     } else {
         (false, None)
     };
@@ -276,7 +282,6 @@ pub fn run(
             None
         },
         &footers,
-        policy.breaking_footer_required,
         &policy.breaking_footer_key,
     );
 
@@ -363,7 +368,6 @@ fn build_commit_message(
     body: Option<&str>,
     breaking_message: Option<&str>,
     footers: &[String],
-    breaking_footer_required: bool,
     breaking_footer_key: &str,
 ) -> String {
     let mut out = String::from(header);
@@ -378,7 +382,7 @@ fn build_commit_message(
 
     if let Some(message) = breaking_message {
         let trimmed = message.trim();
-        if !trimmed.is_empty() && breaking_footer_required {
+        if !trimmed.is_empty() {
             out.push_str("\n\n");
             out.push_str(breaking_footer_key);
             out.push_str(": ");

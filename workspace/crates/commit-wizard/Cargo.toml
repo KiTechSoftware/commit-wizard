@@ -40,3 +40,6 @@ tracing-subscriber.workspace = true
 assert_cmd.workspace = true
 assert_matches.workspace = true
 predicates.workspace = true
+
+[dev-dependencies]
+expectrl = "0.9.0"

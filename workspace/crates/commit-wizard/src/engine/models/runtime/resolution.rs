@@ -147,6 +147,8 @@ pub struct AvailableConfigOptions {
     pub global_config: Option<AvailableConfig>,
     /// Loaded registries (SRS §5). Each entry holds its resolved config.
     pub registries: Vec<RegistryOptions>,
+    /// Registries that failed to load but were not required, as messages.
+    pub registry_failures: Vec<String>,
 }
 
 impl Default for AvailableConfigOptions {
@@ -163,6 +165,7 @@ impl AvailableConfigOptions {
             repo_config: None,
             global_config: None,
             registries: vec![],
+            registry_failures: vec![],
         }
     }
 

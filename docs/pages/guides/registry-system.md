@@ -169,6 +169,63 @@ rm -rf ~/.cache/cwizard/registries/<registry-id>
 # Cache rebuilds on next run
 ```
 
+### Disabling the cache
+
+Set `cache = false` to clone the registry fresh on every run. Nothing is kept
+between runs, so the registry must be reachable each time.
+
+```toml
+[registry]
+use = "my-org"
+cache = false   # default: true
+```
+
+When caching is on and a branch registry cannot be synced (for example you are
+offline), `cw` warns and keeps using the cached copy.
+
+## Failure behavior
+
+By default a registry that cannot be loaded (unreachable, missing `config.toml`,
+unknown section) is reported as a warning and `cw` continues with the rest of
+your configuration. `cw doctor` lists each failure as a warning.
+
+To fail hard instead, mark the registry as required:
+
+```toml
+[registry]
+use = "my-org"
+required = true   # default: false
+```
+
+With `required = true`, `cw` stops with the registry error before running the
+command, including when `use` names a registry that is not configured. Only
+the active registry is affected; other registries in `[registries.*]` that
+fail to load are always warnings.
+
+### Layering across config files
+
+The `[registry]` table is merged field by field across layers (CLI > env > repo
+> global), so a layer only overrides the fields it sets. A global
+`required = true` still applies when a repo config only sets `use` and
+`section`; the repo can opt out with `required = false`.
+
+```toml
+# ~/.config/cwizard/config.toml
+[registry]
+required = true
+
+# .cwizard.toml  (use/section from here, required from the global file)
+[registry]
+use = "my-org"
+section = "backend"
+```
+
+### Running without any config
+
+When there is no project config, no global config and no usable registry (for
+example a registry that failed to load and is not `required`), `cw` runs on the
+built-in defaults instead of failing.
+
 ## Resolution precedence
 
 Behavior and rules follow separate, well-defined precedence chains:
@@ -201,6 +258,41 @@ export CW_COMMIT_SCOPES_MODE=required
 # If nothing is set, defaults apply
 # Result: required (from project config)
 ```
+
+### Replacing part or all of a registry
+
+Local config takes precedence, and layers are merged recursively: tables are
+combined key by key, and a higher layer wins only for the values it sets.
+Anything the local config does not mention keeps coming from the registry, so a
+project can change one setting, one commit type, or one field of a type.
+
+```toml
+# registry: [commit.types.fix] description = "A bug fix", bump = "Patch"
+
+# .cwizard.toml
+[commit]
+subject_max_length = 72        # changes one value; types and scopes still come from the registry
+
+[commit.types.fix]
+bump = "Minor"                 # changes one field; description etc. stay from the registry
+
+[commit.types.docs]            # adds a type the registry does not have
+description = "Documentation"
+
+[commit.types.chore]
+enabled = false                # drops a registry type
+```
+
+Rules of the merge:
+
+- **Tables** (`[commit]`, `[commit.types.fix]`, `[push.allow]`, `[versioning]`, ...)
+  are merged field by field.
+- **Arrays** (such as `[branch] protected = [...]`) are replaced by the higher
+  layer, not concatenated.
+- **Dropping a commit type** from a lower layer is done with
+  `enabled = false` on that type.
+- **Replacing everything** is just defining all of it locally; a registry is
+  only a base.
 
 ### Rules precedence (reusable values)
 

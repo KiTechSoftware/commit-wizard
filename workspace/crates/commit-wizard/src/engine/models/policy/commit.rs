@@ -139,6 +139,7 @@ impl CommitModel {
 
         let types = types_map
             .into_iter()
+            .filter(|(_, value)| value.enabled != Some(false))
             .map(|(key, value)| CommitTypeModel {
                 key,
                 emoji: value.emoji,

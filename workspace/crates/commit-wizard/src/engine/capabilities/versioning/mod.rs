@@ -82,6 +82,7 @@ pub fn calculate_next_version(
         major: 0,
         minor: 1,
         patch: 0,
+        pre: None,
     });
 
     // Apply bump to the base version

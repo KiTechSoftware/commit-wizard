@@ -49,9 +49,9 @@ impl Context {
         self.runtime.set_repo_root(path);
     }
 
-    pub(crate) fn resolve_available_sources(&mut self) {
+    pub(crate) fn resolve_available_sources(&mut self) -> crate::engine::error::Result<()> {
         let ui = self.ui();
-        self.runtime.resolve_available_sources(&ui);
+        self.runtime.resolve_available_sources(&ui)
     }
 
     pub(crate) fn resolve_active_config(&mut self) -> crate::engine::error::Result<()> {

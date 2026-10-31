@@ -59,7 +59,22 @@ impl BaseConfig {
 
     /// Merge two configs. `self` has higher priority — its sections win over `lower` for each
     /// top-level section, falling back to `lower` only when `self`'s section is `None`.
+    /// Merge two layers, with `self` taking precedence over `lower`.
+    ///
+    /// The merge is recursive: tables are combined key by key and the higher
+    /// layer wins only for the leaves it actually sets. A local config can
+    /// therefore change one commit type, one scope policy value or one
+    /// versioning field and keep everything else from the layer below (for
+    /// example a registry). Arrays are replaced, not concatenated.
     pub fn merge(self, lower: BaseConfig) -> BaseConfig {
+        match deep_merge_configs(&self, &lower) {
+            Some(merged) => merged,
+            None => self.shallow_merge(lower),
+        }
+    }
+
+    /// Per-table merge used if the recursive merge cannot round-trip.
+    fn shallow_merge(self, lower: BaseConfig) -> BaseConfig {
         BaseConfig {
             commit: merge_commit_config(self.commit, lower.commit),
             branch: self.branch.or(lower.branch),
@@ -71,7 +86,7 @@ impl BaseConfig {
             release: self.release.or(lower.release),
             hooks: self.hooks.or(lower.hooks),
             ai: self.ai.or(lower.ai),
-            registry: self.registry.or(lower.registry),
+            registry: merge_registry_config(self.registry, lower.registry),
             registries: self.registries.or(lower.registries),
         }
     }
@@ -680,10 +695,75 @@ impl BaseConfig {
             .filter(|s| !s.trim().is_empty())
     }
 
+    /// Whether a failure to load the active registry must stop the command.
+    pub fn registry_required(&self) -> bool {
+        self.registry
+            .as_ref()
+            .and_then(|r| r.required)
+            .unwrap_or(false)
+    }
+
+    /// Whether registries are kept in (and served from) the local cache.
+    pub fn registry_cache(&self) -> bool {
+        self.registry.as_ref().and_then(|r| r.cache).unwrap_or(true)
+    }
+
     pub fn registries_map(&self) -> HashMap<String, NamedRegistryConfig> {
         self.registries
             .clone()
             .unwrap_or_else(defaults::default_registries)
+    }
+}
+
+/// Recursively merge `high` over `low` through their TOML representation.
+/// Returns `None` if either side cannot be converted, so callers can fall back.
+fn deep_merge_configs(high: &BaseConfig, low: &BaseConfig) -> Option<BaseConfig> {
+    let mut merged = toml::Value::try_from(low).ok()?;
+    deep_merge_values(&mut merged, toml::Value::try_from(high).ok()?);
+    let mut config: BaseConfig = merged.try_into().ok()?;
+    // `use` has its own rule: an empty value must not mask a lower layer.
+    config.registry = merge_registry_config(high.registry.clone(), low.registry.clone());
+    Some(config)
+}
+
+fn deep_merge_values(low: &mut toml::Value, high: toml::Value) {
+    match (low, high) {
+        (toml::Value::Table(low), toml::Value::Table(high)) => {
+            for (key, value) in high {
+                match low.get_mut(&key) {
+                    Some(existing) => deep_merge_values(existing, value),
+                    None => {
+                        low.insert(key, value);
+                    }
+                }
+            }
+        }
+        (low, high) => *low = high,
+    }
+}
+
+/// Merge two optional `[registry]` tables field by field.
+///
+/// A higher-priority layer that sets only some fields (say `use`) must not
+/// discard the others (`required`, `cache`, `section`) from a lower layer, so
+/// a repo config can pick a registry while a global config makes it required.
+fn merge_registry_config(
+    high: Option<RegistryConfig>,
+    low: Option<RegistryConfig>,
+) -> Option<RegistryConfig> {
+    match (high, low) {
+        (None, low) => low,
+        (high, None) => high,
+        (Some(h), Some(l)) => Some(RegistryConfig {
+            // An empty `use` means "not chosen", so it must not mask a lower layer.
+            use_registry: h
+                .use_registry
+                .filter(|name| !name.trim().is_empty())
+                .or(l.use_registry),
+            section: h.section.or(l.section),
+            required: h.required.or(l.required),
+            cache: h.cache.or(l.cache),
+        }),
     }
 }
 
@@ -711,5 +791,160 @@ fn merge_commit_config(
             protected: h.protected.or(l.protected),
             ticket: h.ticket.or(l.ticket),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_registry(registry: RegistryConfig) -> BaseConfig {
+        BaseConfig {
+            registry: Some(registry),
+            ..BaseConfig::empty()
+        }
+    }
+
+    fn registry(
+        use_registry: Option<&str>,
+        required: Option<bool>,
+        cache: Option<bool>,
+    ) -> RegistryConfig {
+        RegistryConfig {
+            use_registry: use_registry.map(str::to_string),
+            section: None,
+            required,
+            cache,
+        }
+    }
+
+    #[test]
+    fn registry_fields_merge_instead_of_replacing_the_table() {
+        let global = with_registry(registry(None, Some(true), Some(false)));
+        let repo = with_registry(registry(Some("team"), None, None));
+
+        let merged = repo.merge(global);
+
+        assert_eq!(merged.registry_use().as_deref(), Some("team"));
+        assert!(merged.registry_required(), "global required must survive");
+        assert!(
+            !merged.registry_cache(),
+            "global cache = false must survive"
+        );
+    }
+
+    #[test]
+    fn higher_layer_wins_per_field() {
+        let global = with_registry(registry(Some("global"), Some(true), Some(true)));
+        let repo = with_registry(registry(Some("repo"), Some(false), None));
+
+        let merged = repo.merge(global);
+
+        assert_eq!(merged.registry_use().as_deref(), Some("repo"));
+        assert!(!merged.registry_required());
+        assert!(merged.registry_cache());
+    }
+
+    #[test]
+    fn empty_use_does_not_mask_a_lower_layer() {
+        let global = with_registry(registry(Some("global"), None, None));
+        let repo = with_registry(registry(Some(""), None, None));
+
+        assert_eq!(repo.merge(global).registry_use().as_deref(), Some("global"));
+    }
+
+    #[test]
+    fn registry_defaults_when_no_layer_sets_them() {
+        let merged = BaseConfig::empty().merge(BaseConfig::empty());
+        assert!(!merged.registry_required());
+        assert!(merged.registry_cache());
+    }
+
+    fn parse(toml: &str) -> BaseConfig {
+        toml::from_str(toml).expect("valid config")
+    }
+
+    #[test]
+    fn commit_types_merge_per_type_and_per_field() {
+        let registry = parse(
+            r#"
+[commit.types.fix]
+description = "A bug fix"
+bump = "Patch"
+section = "Bug Fixes"
+
+[commit.types.wip]
+description = "Work in progress"
+bump = "Patch"
+"#,
+        );
+        let local = parse(
+            r#"
+[commit.types.fix]
+bump = "Minor"
+
+[commit.types.wip]
+enabled = false
+
+[commit.types.docs]
+description = "Documentation"
+"#,
+        );
+
+        let types = local.merge(registry).commit_types();
+
+        let fix = &types["fix"];
+        assert_eq!(
+            fix.description.as_deref(),
+            Some("A bug fix"),
+            "kept from below"
+        );
+        assert_eq!(fix.section.as_deref(), Some("Bug Fixes"), "kept from below");
+        assert!(
+            matches!(
+                fix.bump,
+                Some(crate::engine::models::policy::enforcement::BumpLevel::Minor)
+            ),
+            "overridden locally"
+        );
+        assert_eq!(types["wip"].enabled, Some(false));
+        assert_eq!(types["docs"].description.as_deref(), Some("Documentation"));
+        assert_eq!(types.len(), 3);
+    }
+
+    #[test]
+    fn other_tables_merge_per_field() {
+        let registry = parse("[push.allow]\nprotected = true\nforce = false\n");
+        let local = parse("[push.allow]\nforce = true\n");
+
+        let allow = local.merge(registry).push.unwrap().allow.unwrap();
+
+        assert_eq!(allow.protected, Some(true), "kept from below");
+        assert_eq!(allow.force, Some(true), "overridden locally");
+    }
+
+    #[test]
+    fn arrays_are_replaced_not_concatenated() {
+        let registry = parse("[branch]\nprotected = [\"main\", \"release/*\"]\n");
+        let local = parse("[branch]\nprotected = [\"trunk\"]\n");
+
+        let merged = local.merge(registry);
+
+        assert_eq!(
+            merged.branch.unwrap().protected,
+            Some(vec!["trunk".to_string()])
+        );
+    }
+
+    #[test]
+    fn merging_is_associative_across_three_layers() {
+        let low = parse("[commit]\nsubject_max_length = 100\nuse_emojis = false\n");
+        let mid = parse("[commit]\nuse_emojis = true\n");
+        let high = parse("[commit]\nsubject_max_length = 50\n");
+
+        let merged = high.merge(mid.merge(low));
+
+        assert_eq!(merged.commit_subject_max_length(), 50);
+        assert!(merged.commit_use_emojis());
     }
 }
