@@ -673,6 +673,19 @@ order = 10
 
 ---
 
+## `[global]` — Relation to the global config
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `inherit` | bool | `false` | Use the global config as the lowest layer under this project's config |
+
+By default a project config replaces the global one: the global config only applies when no project (or registry, env or cli) config exists. Set `inherit = true` to have the global config fill in whatever the project does not set.
+
+```toml
+[global]
+inherit = true
+```
+
 ## `[registry]` — Active registry selection
 
 ### `registry.use`

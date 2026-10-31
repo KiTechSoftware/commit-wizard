@@ -170,6 +170,7 @@ pub fn build_env_config() -> Option<BaseConfig> {
         hooks: None,
         registry: None,
         registries: None,
+        global: None,
     })
 }
 

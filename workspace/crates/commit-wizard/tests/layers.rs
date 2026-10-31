@@ -58,3 +58,50 @@ fn global_config_commands_never_touch_the_project_file() {
         "project file was modified: {project}"
     );
 }
+
+#[test]
+fn global_is_a_lower_layer_when_the_project_opts_in() {
+    let repo = Repo::bare();
+    repo.write_global_file("config.toml", "[commit]\nsubject_max_length = 11\n");
+    repo.write(
+        ".cwizard.toml",
+        "[global]\ninherit = true\n[branch]\nremote = \"upstream\"\n",
+    );
+
+    // Nothing in the project sets the limit, so the global value applies.
+    assert!(rejects_long_subject(&repo, &[]));
+}
+
+#[test]
+fn a_project_value_still_beats_an_inherited_global_one() {
+    let repo = Repo::bare();
+    repo.write_global_file("config.toml", "[commit]\nsubject_max_length = 11\n");
+    repo.write(
+        ".cwizard.toml",
+        "[global]\ninherit = true\n[commit]\nsubject_max_length = 100\n",
+    );
+
+    assert!(!rejects_long_subject(&repo, &[]));
+}
+
+#[test]
+fn without_the_opt_in_the_global_config_is_ignored_next_to_a_project_config() {
+    let repo = Repo::bare();
+    repo.write_global_file("config.toml", "[commit]\nsubject_max_length = 11\n");
+    repo.write(".cwizard.toml", "[branch]\nremote = \"upstream\"\n");
+
+    assert!(!rejects_long_subject(&repo, &[]));
+}
+
+#[test]
+fn the_opt_in_can_be_set_from_the_cli_and_shows_in_the_effective_view() {
+    let repo = Repo::bare();
+    repo.write_global_file("config.toml", "[commit]\nsubject_max_length = 11\n");
+    repo.write(".cwizard.toml", "[branch]\nremote = \"upstream\"\n");
+
+    let set = repo.cw(&["config", "set", "global.inherit", "true"]);
+    assert!(set.status.success(), "{}", text(&set));
+
+    let view = text(&repo.cw(&["config", "list", "--effective", "commit.subject"]));
+    assert!(view.contains("11") && view.contains("global"), "{view}");
+}

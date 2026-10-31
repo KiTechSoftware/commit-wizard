@@ -182,6 +182,7 @@ fn is_supported_key(key: &str) -> bool {
             | "release.target_branch"
             | "ai.enabled"
             | "ai.provider"
+            | "global.inherit"
             | "changelog.output"
             | "versioning.tag_prefix"
     )
@@ -320,7 +321,7 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
                 .with_context("value", raw)
                 .with_context("reason", "expected integer")
         }),
-        "commit.ticket.required" | "release.enabled" | "ai.enabled" => {
+        "commit.ticket.required" | "release.enabled" | "ai.enabled" | "global.inherit" => {
             raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
                 ErrorCode::ConfigInvalid
                     .error()

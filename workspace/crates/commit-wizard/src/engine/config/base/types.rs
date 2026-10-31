@@ -451,6 +451,16 @@ pub struct AiCommandsConfig {
     pub release_prepare: Option<bool>,
 }
 
+/// How a project config relates to the user-level (global) config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GlobalConfig {
+    /// Use the global config as the lowest layer under this project's config.
+    /// Off by default: a project config normally replaces the global one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inherit: Option<bool>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RegistryConfig {

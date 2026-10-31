@@ -397,6 +397,7 @@ pub fn standard_base_config() -> crate::engine::config::BaseConfig {
         ai: Some(default_ai_config()),
         registry: None,
         registries: None,
+        global: None,
     }
 }
 
@@ -414,5 +415,6 @@ pub fn full_base_config() -> crate::engine::config::BaseConfig {
         ai: Some(default_ai_config()),
         registry: Some(default_registry_config()),
         registries: Some(default_registries()),
+        global: None,
     }
 }

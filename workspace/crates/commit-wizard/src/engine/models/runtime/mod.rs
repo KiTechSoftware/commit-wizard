@@ -808,10 +808,19 @@ impl Runtime {
             });
         }
 
-        if layers.is_empty()
+        // The global config is the fallback when nothing else exists, and
+        // otherwise only a lower layer if the project opts in with
+        // `[global] inherit = true`.
+        let inherit = layers
+            .iter()
+            .fold(BaseConfig::empty(), |base, layer| {
+                layer.base.clone().merge(base)
+            })
+            .global_inherit();
+        if (layers.is_empty() || inherit)
             && let Some(layer) = self.global_layer()
         {
-            layers.push(layer);
+            layers.insert(0, layer);
         }
         layers
     }
@@ -828,7 +837,7 @@ impl Runtime {
         match self.global_layer() {
             Some(layer) if !applied.is_empty() => vec![(
                 layer,
-                "not applied: the global config is only used when no registry, project, env or cli config exists"
+                "not applied: set `[global] inherit = true` in the project config to use it as a lower layer"
                     .to_string(),
             )],
             _ => Vec::new(),

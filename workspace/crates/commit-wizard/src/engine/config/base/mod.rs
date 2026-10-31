@@ -37,6 +37,8 @@ pub struct BaseConfig {
     pub registry: Option<RegistryConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registries: Option<HashMap<String, NamedRegistryConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global: Option<GlobalConfig>,
 }
 
 impl BaseConfig {
@@ -54,6 +56,7 @@ impl BaseConfig {
             ai: None,
             registry: None,
             registries: None,
+            global: None,
         }
     }
 
@@ -88,6 +91,7 @@ impl BaseConfig {
             ai: self.ai.or(lower.ai),
             registry: merge_registry_config(self.registry, lower.registry),
             registries: self.registries.or(lower.registries),
+            global: self.global.or(lower.global),
         }
     }
 
@@ -693,6 +697,15 @@ impl BaseConfig {
             .as_ref()
             .and_then(|r| r.use_registry.clone())
             .filter(|s| !s.trim().is_empty())
+    }
+
+    /// Whether the global config sits under this project's config as its
+    /// lowest layer (`[global] inherit = true`). Default: no.
+    pub fn global_inherit(&self) -> bool {
+        self.global
+            .as_ref()
+            .and_then(|g| g.inherit)
+            .unwrap_or(false)
     }
 
     /// Whether a failure to load the active registry must stop the command.

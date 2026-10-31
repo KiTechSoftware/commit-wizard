@@ -68,12 +68,24 @@ cw config unset commit.ticket.required
 Values are resolved in this order (highest wins):
 
 ```sh
-CLI flags > ENV vars > project config > registry config > defaults
+CLI flags > ENV vars > project config > registry config > global config (opt-in) > defaults
 ```
 
 Layers are merged setting by setting, so a higher layer only overrides the values it sets.
 
-The **global config** is a fallback, not a layer: it is used only when there is no registry, project, env or cli config at all. When a project config exists, a global config file is ignored. `cw config list --effective` shows this explicitly.
+**The global config** is used when no project config is found. Once a project, registry, env or cli config exists, the global config is ignored, unless the project opts in to using it as its lowest layer:
+
+```toml
+# .cwizard.toml
+[global]
+inherit = true   # global config sits under this project's settings
+```
+
+(or `cw config set global.inherit true`).
+
+**Built-in defaults** are not a layer you can see through. They are used only when there is no external config at all — no project, registry, global, env or cli config. As soon as any external config exists, it is the whole configuration, and a setting it leaves unset falls back to that setting's own default when it is read.
+
+`cw config list --effective` shows which layers applied and which were found but not applied.
 
 `cw config show` prints the raw contents of one config file. To see the resolved result, use `cw config list --effective`.
 
@@ -89,7 +101,7 @@ cw config -g list                     # settings in the global config file
 `--effective` prints two tables:
 
 - **Layers** (highest priority first): each layer that took part, where it was read from (file, registry URL, environment or flags), and layers that exist but were *not applied*, with the reason.
-- **Settings**: each resolved key, its value, and the layer that supplied it (`cli`, `env`, `project`, `registry:<name>`, `global`). Settings no layer sets use built-in defaults and are not listed.
+- **Settings**: each resolved key, its value, and the layer that supplied it (`cli`, `env`, `project`, `registry:<name>`, `global`). Settings no layer sets are not listed; they use their own defaults when read. When there is no external config at all, the built-in defaults are listed with the source `default`.
 
 With `--json` the same tables are returned as structured data. `--effective` cannot be combined with `-g`.
 
