@@ -42,14 +42,25 @@ pub enum ConfigSubcommand {
         /// Config key to unset
         key: String,
     },
-    // /// Open an interactive editor for the config (guided prompts)
-    // Edit,
+    /// List settings: those in the config file, or with --effective the
+    /// resolved configuration and where each value came from
+    List {
+        /// Show the resolved configuration across all layers (registry,
+        /// project, env, cli) with the source of every value
+        #[arg(long)]
+        effective: bool,
+        /// Only list keys starting with this prefix, e.g. commit.types
+        prefix: Option<String>,
+    },
 }
 
 pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
     let global = args.global;
     match args.subcommand {
         ConfigSubcommand::Path => configs::config_path(ctx, global),
+        ConfigSubcommand::List { effective, prefix } => {
+            configs::config_list(ctx, global, effective, prefix)
+        }
         ConfigSubcommand::Show {} => configs::config_show(ctx, global),
         ConfigSubcommand::Get { key } => configs::config_get(ctx, &key, global),
         ConfigSubcommand::Set { key, value, .. } => configs::config_set(ctx, &key, &value, global),

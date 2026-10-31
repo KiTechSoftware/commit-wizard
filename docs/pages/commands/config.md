@@ -13,7 +13,8 @@ cw config [OPTIONS] <SUBCOMMAND>
 | Subcommand | Description |
 | --- | --- |
 | `path` | Show the path of the config file that would be read/written |
-| `show` | Print the active (merged) configuration |
+| `show` | Print the contents of the config file |
+| `list [--effective] [PREFIX]` | List settings; `--effective` shows the resolved configuration and where each value came from |
 | `get <KEY>` | Get a specific value by dot-path key |
 | `set <KEY> <VALUE>` | Set a config value |
 | `unset <KEY>` | Remove a config value |
@@ -67,10 +68,30 @@ cw config unset commit.ticket.required
 Values are resolved in this order (highest wins):
 
 ```sh
-CLI flags > ENV vars > project config > registry config > global config > defaults
+CLI flags > ENV vars > project config > registry config > defaults
 ```
 
-`cw config show` displays the fully merged result after all layers are applied.
+Layers are merged setting by setting, so a higher layer only overrides the values it sets.
+
+The **global config** is a fallback, not a layer: it is used only when there is no registry, project, env or cli config at all. When a project config exists, a global config file is ignored. `cw config list --effective` shows this explicitly.
+
+`cw config show` prints the raw contents of one config file. To see the resolved result, use `cw config list --effective`.
+
+## Seeing the effective configuration
+
+```sh
+cw config list --effective            # every resolved setting, with where it came from
+cw config list --effective commit     # only keys starting with "commit"
+cw config list                        # settings in the project config file
+cw config -g list                     # settings in the global config file
+```
+
+`--effective` prints two tables:
+
+- **Layers** (highest priority first): each layer that took part, where it was read from (file, registry URL, environment or flags), and layers that exist but were *not applied*, with the reason.
+- **Settings**: each resolved key, its value, and the layer that supplied it (`cli`, `env`, `project`, `registry:<name>`, `global`). Settings no layer sets use built-in defaults and are not listed.
+
+With `--json` the same tables are returned as structured data. `--effective` cannot be combined with `-g`.
 
 ## Config file locations
 
