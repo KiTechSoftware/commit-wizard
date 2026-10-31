@@ -46,6 +46,17 @@ cw changelog --output - --output-format json | jq '.releases[0].sections'
 cw changelog --from v1.2.0 --to v1.3.0
 ```
 
+## Interactive mode
+
+Run `cw changelog` on a terminal with no options and it asks what to generate:
+
+1. **What would you like to generate?** — *Changes since the last tag*, *Full history*, or a *Custom range*.
+2. For a range, the **From** and **To** revisions (From is required, To defaults to `HEAD`).
+3. For anything but full history, a **version label**; leave it empty to call the section `Unreleased`.
+4. Whether to **group entries by scope**, and whether to **include commits that are not Conventional Commits**.
+
+Giving any option on the command line skips the questions, and so does running without a terminal (in a script or CI), where `cw changelog` simply uses the defaults. The output format, file and link settings always come from config or flags.
+
 ## How it works
 
 1. **Releases.** Version tags reachable from `--to` (default `HEAD`) define the releases, newest version first. Each release holds the commits since the previous tag. Tags on other branches are ignored.

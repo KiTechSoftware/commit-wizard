@@ -1,8 +1,11 @@
-use std::{fs, path::PathBuf, time::Instant};
+use std::{fs, io::IsTerminal, path::PathBuf, time::Instant};
+
+use scriba::{SelectOption, SelectRequest};
 
 use crate::{
     core::{Context, CoreResult},
     engine::{
+        PromptTrait,
         capabilities::changelog::{
             BuildOptions, Release, ReleaseSpec, RenderedBlock, apply_links, build_release,
             format_date, links::Links, merge_markdown, render_header, render_json,
@@ -46,7 +49,90 @@ struct Range {
     link_to: String,
 }
 
+impl Options {
+    /// Nothing was chosen on the command line.
+    fn is_untouched(&self) -> bool {
+        !self.all
+            && self.from.is_none()
+            && self.to == "HEAD"
+            && self.output.is_none()
+            && self.format.is_none()
+            && !self.group_by_scope
+            && self.next_tag.is_none()
+            && !self.include_non_cc
+            && !self.prereleases
+    }
+}
+
+/// Ask what to generate. Only used on a terminal when no option was given;
+/// anything passed as a flag skips the questions.
+fn ask(ctx: &Context, mut options: Options) -> CoreResult<Options> {
+    let ui = ctx.ui();
+    let invalid =
+        |field: &'static str| move |_| ErrorCode::InvalidInput.error().with_context("field", field);
+
+    let choice = ui
+        .select(&SelectRequest::new(
+            "What would you like to generate?".to_string(),
+            vec![
+                SelectOption::new("pending", "Changes since the last tag")
+                    .description("An Unreleased section, or a version you name".to_string()),
+                SelectOption::new("all", "Full history")
+                    .description("Every release found in the tag history".to_string()),
+                SelectOption::new("range", "Custom range")
+                    .description("Everything between two revisions".to_string()),
+            ],
+        ))
+        .map_err(invalid("scope"))?;
+
+    match choice.as_str() {
+        "all" => options.all = true,
+        "range" => {
+            let from = ui.text(
+                "From (tag or commit)",
+                None,
+                Some("Required; excluded from the range"),
+            )?;
+            if from.trim().is_empty() {
+                return Err(ErrorCode::InvalidInput
+                    .error()
+                    .with_context("field", "from")
+                    .with_context("reason", "the start of the range is required"));
+            }
+            options.from = Some(from.trim().to_string());
+            let to = ui.text("To (tag or commit)", Some("HEAD"), Some("Defaults to HEAD"))?;
+            if !to.trim().is_empty() {
+                options.to = to.trim().to_string();
+            }
+        }
+        _ => {}
+    }
+
+    if choice != "all" {
+        let label = ui.text(
+            "Version label",
+            None,
+            Some("Leave empty to call this section Unreleased"),
+        )?;
+        if !label.trim().is_empty() {
+            options.next_tag = Some(label.trim().to_string());
+        }
+    }
+
+    options.group_by_scope = ui.confirm("Group entries by scope?", false)?;
+    options.include_non_cc =
+        ui.confirm("Include commits that are not Conventional Commits?", false)?;
+    Ok(options)
+}
+
 pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
+    // Only on a real terminal: a bare `cw changelog` in a script or CI must just run.
+    let on_terminal = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    let options = if ctx.is_interactive() && on_terminal && options.is_untouched() {
+        ask(ctx, options)?
+    } else {
+        options
+    };
     let ui = ctx.ui();
     let git = ctx.git();
     let start = Instant::now();
