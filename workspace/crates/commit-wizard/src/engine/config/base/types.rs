@@ -12,7 +12,7 @@ where
     D: Deserializer<'de>,
 {
     let s = Option::<String>::deserialize(deserializer)?;
-    Ok(s.and_then(|s| if s.is_empty() { None } else { Some(s) }))
+    Ok(s.filter(|s| !s.is_empty()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

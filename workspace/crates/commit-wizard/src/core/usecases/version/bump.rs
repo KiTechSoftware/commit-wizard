@@ -139,7 +139,7 @@ pub fn run(ctx: &Context, from: Option<String>, to: String, tail: Option<u32>) -
         let line = format!(
             "{} {}",
             &commit.hash[..8.min(commit.hash.len())],
-            &commit.summary
+            commit.summary
         );
         match bump {
             BumpLevel::Major => major_commits.push(line),
