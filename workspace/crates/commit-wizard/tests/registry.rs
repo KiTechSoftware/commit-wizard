@@ -76,6 +76,17 @@ sections = ["custom"]
     repo
 }
 
+/// Like `repo_using`, with extra TOML (local overrides) appended to the config.
+fn repo_overriding(registry_url: &str, local_overrides: &str) -> Repo {
+    let repo = repo_using(registry_url);
+    let path = repo.path().join(".cwizard.toml");
+    let mut config = std::fs::read_to_string(&path).unwrap();
+    config.push_str(&format!("\n{local_overrides}\n"));
+    std::fs::write(&path, config).unwrap();
+    repo.git(&["add", "-A"]);
+    repo
+}
+
 fn file_url(dir: &Path) -> String {
     format!("file://{}", dir.display())
 }
@@ -343,4 +354,64 @@ fn failed_cli_registry_falls_back_to_defaults_instead_of_failing() {
     assert!(output.contains("Registry load failed"), "{output}");
     assert!(!output.contains("Config not resolved"), "{output}");
     assert!(out.status.success(), "{output}");
+}
+
+// --- local config takes precedence over the registry ------------------------
+//
+// Users replace a subset (or all) of what a remote registry defines. Settings
+// the local config does not mention keep coming from the registry.
+
+#[test]
+fn local_scalar_overrides_one_setting_and_keeps_registry_types() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_overriding(&file_url(reg.path()), "[commit]\nsubject_max_length = 20");
+
+    // Registry-only type still works...
+    let ok = repo.cw(&["commit", "-t", "wip", "-m", "short"]);
+    assert!(ok.status.success(), "{}", text(&ok));
+
+    // ...and the local limit applies.
+    repo.write("y.txt", "y");
+    repo.git(&["add", "y.txt"]);
+    let long = repo.cw(&["commit", "-t", "wip", "-m", &"x".repeat(30)]);
+    assert!(!long.status.success(), "{}", text(&long));
+    assert!(text(&long).contains("max length"), "{}", text(&long));
+}
+
+#[test]
+fn local_types_replace_all_registry_types() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_overriding(
+        &file_url(reg.path()),
+        "[commit.types.fix]\ndescription = \"A bug fix\"\nbump = \"Patch\"\nsection = \"Fixes\"",
+    );
+
+    let ok = repo.cw(&["commit", "-t", "fix", "-m", "local type"]);
+    assert!(ok.status.success(), "{}", text(&ok));
+
+    repo.write("y.txt", "y");
+    repo.git(&["add", "y.txt"]);
+    // `wip` and `feat` came from the registry and are now replaced.
+    for ty in ["wip", "feat"] {
+        let out = repo.cw(&["commit", "-t", ty, "-m", "gone"]);
+        assert!(!out.status.success(), "{ty}: {}", text(&out));
+    }
+}
+
+#[test]
+fn local_scopes_override_without_touching_registry_types() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_overriding(
+        &file_url(reg.path()),
+        "[commit.scopes]\nmode = \"required\"",
+    );
+
+    // Scope policy is local...
+    let missing = repo.cw(&["commit", "-t", "wip", "-m", "no scope"]);
+    assert!(!missing.status.success(), "{}", text(&missing));
+
+    // ...while the type still comes from the registry.
+    let scoped = repo.cw(&["commit", "-t", "wip", "-s", "core", "-m", "with scope"]);
+    assert!(scoped.status.success(), "{}", text(&scoped));
+    assert_eq!(repo.subjects()[0], "wip(core): with scope");
 }

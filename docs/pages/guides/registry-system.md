@@ -259,6 +259,27 @@ export CW_COMMIT_SCOPES_MODE=required
 # Result: required (from project config)
 ```
 
+### Replacing part or all of a registry
+
+Local config takes precedence, so a project can keep a registry as its base and
+replace only the parts it needs. Whatever the local config does not set keeps
+coming from the registry.
+
+Inside `[commit]`, each setting is replaced on its own:
+
+| Local config sets | Result |
+|---|---|
+| `subject_max_length`, `use_emojis` | Only that value changes; types, scopes, etc. stay from the registry |
+| `[commit.scopes]` | Scope policy is local; types stay from the registry |
+| `[commit.types.*]` | The registry's type list is replaced entirely by the local types |
+| nothing under `[commit]` | The registry's commit settings apply as-is |
+
+Replacement is per setting, not per entry: defining one `[commit.types.fix]`
+replaces the registry's whole type list rather than adding to it. To change a
+single type, redefine the types you want to keep alongside it. Other top-level
+tables (`[versioning]`, `[changelog]`, `[push]`, ...) are replaced as a whole
+table when the local config defines them.
+
 ### Rules precedence (reusable values)
 
 ```sh
