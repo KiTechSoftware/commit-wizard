@@ -137,8 +137,8 @@ warn = true          # Warn when attempting
 [commit.ticket]
 required = true
 pattern = "([A-Z]+-\\d+|#\\d+)"  # PROJ-123 or #123
-source = "branch_or_prompt"  # "branch", "prompt", "branch_or_prompt", "disabled"
-header_format = "[{ticket}] "  # Prefix subject with ticket
+source = "branch_or_prompt"  # "branch", "prompt", "branch_or_prompt", "disabled" (not applied by any command yet)
+header_format = "[{ticket}] "  # Not applied by any command yet
 
 
 # ── Branch configuration ────────────────────────────────────────────
@@ -316,7 +316,7 @@ team_on_call = "security-team@company.com"
 ### Integration fields (connect to external systems)
 
 - `registry` — Use a shared registry
-- `commit.ticket.source` — Extract tickets from branch names
+- `commit.ticket.source` — Reserved: where tickets should come from (not applied yet; `cw check` only looks for `pattern` in the message)
 - `commit.ticket.pattern` — Validate ticket IDs
 
 ### Descriptive fields (metadata)

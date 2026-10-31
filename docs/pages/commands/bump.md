@@ -42,7 +42,8 @@ cw bump --json
 | --- | --- |
 | Any `BREAKING CHANGE` footer or `!` suffix | **major** |
 | `feat` | **minor** |
-| `fix`, `perf`, and other patch-level types | **patch** |
+| `fix`, `perf`, `docs`, `chore` and the other built-in types | **patch** |
+| A type that is not defined in the config (such as `wip`) | no bump |
 
 The bump level is determined by the _highest_ impact commit in the range. You can customize which types bump which level via `[commit.types.<type>].bump` in your config.
 

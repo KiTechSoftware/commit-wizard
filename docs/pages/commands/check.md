@@ -61,7 +61,7 @@ cw check --tail 20 --full-hash
 - **Type** — must be one of the allowed commit types defined in config (`feat`, `fix`, etc.)
 - **Scope** — validated against defined scopes when `commit.scopes.restrict_to_defined = true`
 - **Subject length** — enforced against `commit.subject_max_length` (default: 72)
-- **Ticket reference** — required when `commit.ticket.required = true`
+- **Ticket reference** — when `commit.ticket.required = true`, `commit.ticket.pattern` must match somewhere in the message
 
 Use [`cw config show`](./config.md) to inspect the active rules that `cw check` enforces.
 

@@ -299,6 +299,8 @@ warn = true         # Show warning if attempting
 
 Ticket reference requirements (e.g., Jira ticket, GitHub issue number).
 
+> **What is enforced today:** `cw check` (and the commit check that `cw push` runs) fails a commit that has no ticket when `required = true`. `cw commit` does not ask for, find or insert a ticket yet, so `source` and `header_format` are accepted and validated but not applied. Put the ticket in the message yourself.
+
 #### `commit.ticket.required`
 
 **Type:** `bool`  
@@ -308,7 +310,7 @@ Ticket reference requirements (e.g., Jira ticket, GitHub issue number).
 
 **Type:** `string` (regex)  
 **Default:** none  
-**Description:** Regex pattern for valid ticket IDs.
+**Description:** Regex pattern for valid ticket IDs. With `required = true`, the pattern must match somewhere in the commit message (header, body or footer). Without a pattern, `required = true` fails every commit, so set one.
 
 ```toml
 [commit.ticket]
@@ -322,7 +324,7 @@ pattern = "([A-Z]+-\\d+|#\\d+)"  # Multiple formats
 
 **Type:** enum (`"branch"`, `"prompt"`, `"branch_or_prompt"`, `"disabled"`)  
 **Default:** `"disabled"`  
-**Description:** Where to extract ticket references from.
+**Description:** Where ticket references should come from. Reserved: stored and validated, but no command reads it yet.
 
 ```toml
 [commit.ticket]
@@ -336,7 +338,7 @@ source = "disabled"         # Don't look for tickets
 
 **Type:** `string`  
 **Default:** `"[{ticket}] "`  
-**Description:** Format string for the ticket reference in the subject. Use `{ticket}` as placeholder.
+**Description:** Format string for the ticket reference in the subject, with `{ticket}` as placeholder. Reserved: stored and validated, but no command applies it yet.
 
 ```toml
 [commit.ticket]
@@ -358,7 +360,7 @@ header_format = "{ticket}: "      # PROJ-123: my message
 ### `branch.protected`
 
 **Type:** `array of strings`  
-**Default:** `["main", "master"]`  
+**Default:** `["main", "master", "release/*"]`  
 **Description:** Branch name patterns (glob-style) that are protected.
 
 ```toml
@@ -369,8 +371,8 @@ protected = ["main", "master", "develop", "release/*", "hotfix/*"]
 ### `branch.naming.pattern`
 
 **Type:** `string`  
-**Default:** none  
-**Description:** Required branch naming pattern (regex).
+**Default:** `"feature/{issue}"`  
+**Description:** Branch naming pattern. Reserved: the value is stored, but branch names are not enforced against it yet.
 
 ```toml
 [branch.naming]
@@ -387,7 +389,7 @@ pattern = "^(feature|bugfix|hotfix)/[a-z0-9-]+$"
 ### `pr.enabled`
 
 **Type:** `bool`  
-**Default:** `false`
+**Default:** `true`
 
 ### `pr.title.require_conventional`
 
@@ -858,4 +860,4 @@ date_format = "%Y-%m-%d"
 | Use shared registry config | `[registry]` + `[registries]` |
 | Define reusable values | `[rules]` |
 
-See [Configuration Guides](./configs/) for practical examples.
+See [Configuration Guides](configs/recommended.md) for practical examples.

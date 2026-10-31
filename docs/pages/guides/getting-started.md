@@ -295,7 +295,7 @@ See [Configuration Guides](../guides/configs/standard.md) for full reference and
 | `cw doctor` | Diagnose issues and suggest fixes |
 | `cw fix` | Correct commit messages that break the rules |
 
-See [Command Reference](../commands/) for full details.
+See [Command Reference](../commands/global-flags.md) for full details.
 
 ## Next steps
 
@@ -341,4 +341,4 @@ cw config get commit.scopes.mode
 ## Support
 
 - [GitHub Issues](https://github.com/KiTechSoftware/commit-wizard/issues)
-- [Documentation](../)
+- [Documentation](../index.md)

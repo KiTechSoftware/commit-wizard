@@ -74,12 +74,24 @@ cw tag --dry-run
 | --- | --- |
 | `--set-version <SEMVER>` / `--use-version` | Use this exact version instead of calculating from commits (e.g. `1.2.3` or `v1.2.3`) |
 | `--prefix <PREFIX>` | Tag prefix (default: `v` from `versioning.tag_prefix` in config) |
-| `--suffix <SUFFIX>` | Tag suffix appended after the version (e.g. `-rc1`) |
+| `--suffix <SUFFIX>` | Prerelease suffix (e.g. `-rc1`, `rc`, `beta.2`); see [Release candidates](#release-candidates) |
 | `--sign` | Create a GPG-signed annotated tag |
 | `--push` | Push the tag to the remote after creation |
 | `--remote <NAME>` | Remote to push to (default: `origin`) |
 | `--branch <BRANCH>` | Branch to tag (default: `HEAD`) |
 | `--message <MSG>` | Annotated tag message/body |
+
+## Release candidates
+
+`--suffix` makes the tag a prerelease of the version the commits call for:
+
+| You pass | Tag created (next release is 1.2.0) |
+| --- | --- |
+| `--suffix rc` | `v1.2.0-rc.1`, then `v1.2.0-rc.2` on the next run, counting up automatically |
+| `--suffix rc1` or `--suffix -rc1` | `v1.2.0-rc1`, exactly as written |
+| `--suffix beta.2` | `v1.2.0-beta.2`, exactly as written |
+
+Tag the final release by running `cw tag` without a suffix.
 
 ## Version calculation
 

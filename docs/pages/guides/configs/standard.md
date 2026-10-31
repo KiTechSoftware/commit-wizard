@@ -164,7 +164,7 @@ Add ticket requirements:
 [commit.ticket]
 required = true
 pattern = "PROJ-\\d+"
-source = "branch_or_prompt"
+source = "branch_or_prompt"   # reserved: not applied by any command yet
 ```
 
 See [Public API Reference](../public-api.md) for all available options.
