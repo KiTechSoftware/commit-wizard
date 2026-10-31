@@ -118,13 +118,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: commit-wizard@0.0.2
-      - run: cw check --ci --from origin/${{ github.base_ref }} --to HEAD
+          fetch-depth: 0   # cw needs the history to check it
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install commit-wizard --locked
+      - run: cw check --ci --from origin/${{ github.base_ref }} --to HEAD   # fails the job on a bad commit
 ```
 
 ---
@@ -265,7 +264,7 @@ branch_policy = true
 [check.commits]
 enforce_on = "all_branches"  # Strict checking everywhere
 
-# Release workflows (v0.0.3+)
+# Release workflows (reserved: accepted, but no command uses it yet)
 [release]
 enabled = true
 source_branch = "develop"

@@ -26,21 +26,17 @@ team_slack_channel = "#dev-team"
 
 ## Using rules with patterns
 
-**Current status (v0.0.2):** Rules are stored but cross-field references are coming in v0.0.3+.
-
-In v0.0.2, use rules as a documentation and reference point. In v0.0.3+, you'll be able to do:
+Any text setting can refer to a rule by writing `"@rules.<name>"`. cw swaps in the rule's value when the configuration loads:
 
 ```toml
+[rules]
+ticket_pattern = "PROJ-\\d+"
+
 [commit.ticket]
-pattern = "@rules.ticket_pattern"
+pattern = "@rules.ticket_pattern"   # becomes PROJ-\d+
 ```
 
-But for now, manually reference the rule value:
-
-```toml
-[commit.ticket]
-pattern = "PROJ-\\d+"  # From @rules.ticket_pattern
-```
+References work in every text setting, and in each item of a list of text values. Numbers and booleans cannot be references; write those directly. A reference to a rule that does not exist is an error, and `cw config list --effective` shows the resolved values.
 
 ## Rules for different aspects
 
@@ -241,7 +237,7 @@ version = 1
 use = "company-standards"
 
 # Now the registry's [rules] section is available
-# Reference them as @rules.* (v0.0.3+ with cross-field refs)
+# Reference them as "@rules.<name>" in any text setting
 ```
 
 ## Rules inheritance

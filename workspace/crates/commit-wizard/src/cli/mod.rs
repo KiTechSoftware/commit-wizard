@@ -11,12 +11,11 @@
 //!
 //! ## Example
 //!
-//! The typical entry point for a binary using this crate:
+//! This is the whole `cw` binary (it is compiled as part of the tests, never run):
 //!
-//! ```ignore
-//! use commit_wizard::cli::run;
-//! fn main() {
-//!     std::process::exit(run().into());
+//! ```no_run
+//! fn main() -> std::process::ExitCode {
+//!     commit_wizard::cli::run()
 //! }
 //! ```
 

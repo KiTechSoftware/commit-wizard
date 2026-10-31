@@ -15,6 +15,8 @@ The following flags are available on every `cw` subcommand.
 | `--ci` | | bool | `false` | Strict non-interactive mode: no questions, defaults accepted. Conflicts with `--non-interactive` |
 | `--non-interactive` | | bool | `false` | Never ask; answers must come from flags. Conflicts with `--ci` |
 | `--yes` | `-y` | bool | `false` | Accept the default answer to any question that has one |
+| `--help` | `-h` | bool | | Show help for `cw` or for any command (`cw tag --help`) |
+| `--version` | `-V` | bool | | Print the `cw` version |
 | `--force` | | bool | `false` | Override protections (e.g. push to a protected branch) |
 | `--config <PATH>` | | path | | Use a specific config file instead of the auto-discovered one |
 | `--registry <URL>` | | string | | Use a specific registry (local path or Git URL) |

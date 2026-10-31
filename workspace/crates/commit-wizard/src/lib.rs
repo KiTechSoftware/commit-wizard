@@ -1,36 +1,40 @@
 //! # Commit Wizard
 //!
-//! A lightweight Rust library for **Conventional Commits**, semantic versioning, and changelog automation.
+//! **A spellbook for your commits.** `commit-wizard` installs a command-line tool, `cw`, for
+//! [Conventional Commits](https://www.conventionalcommits.org/), semantic versioning and
+//! changelog automation.
 //!
-//! This crate provides the core functionality for validating commits, managing versions, generating
-//! changelogs, and managing Git tags according to semantic versioning principles. It can be used
-//! programmatically via the library interface or through the `cw` CLI binary.
-//!
-//! ## Modules
-//!
-//! - [`cli`]: Command-line interface implementation (public commands and arguments)
-//! - [`core`]: Core application logic including bootstrap, context management, and use cases
-//! - [`engine`]: Business logic layer with traits, models, capabilities, and configuration
-//! - [`infra`]: Infrastructure layer for Git operations, UI interactions, and file system access
-//!
-//! ## Example Usage
-//!
-//! ```ignore
-//! use commit_wizard::core::Context;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create application context
-//!     let context = Context::new().await?;
-//!
-//!     // Use context to access capabilities and operations
-//!     Ok(())
-//! }
+//! ```text
+//! cargo install commit-wizard --locked
+//! cw init        # guided setup
+//! cw commit      # write a Conventional Commit, step by step
+//! cw check       # validate history; exits non-zero if any commit breaks the rules
+//! cw tag         # work out the next version and tag it
+//! cw changelog   # write the changelog from your tags
 //! ```
 //!
-//! ## Conventional Commits
+//! The user manual, with every command and the full configuration schema, is at
+//! <https://commit-wizard.kitechsoftware.com>.
 //!
-//! This library enforces [Conventional Commits](https://www.conventionalcommits.org/) format:
+//! ## This is a tool, not a library
+//!
+//! The code is published as a library crate only so that the `cw` binary, its tests and
+//! docs.rs can share it. The modules below are an implementation detail and carry **no
+//! stability guarantee**: they may change in any release, patch releases included. If you want
+//! to build on `cw`, depend on its command line and its configuration files, not on this API.
+//!
+//! ## How the code is organised
+//!
+//! For contributors, the crate is layered from the outside in:
+//!
+//! - [`cli`]: argument parsing and command dispatch (`cw <command>`)
+//! - [`core`]: the use cases behind each command, and the context they run in
+//! - [`engine`]: models, configuration, validation rules and other logic with no I/O
+//! - [`infra`]: Git, terminal and file-system adapters
+//!
+//! ## What `cw` enforces
+//!
+//! Commits follow the Conventional Commits layout:
 //!
 //! ```text
 //! <type>(<scope>): <description>
@@ -40,14 +44,13 @@
 //! <footer>
 //! ```
 //!
-//! Supported types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+//! The allowed types and scopes come from your configuration (the standard profile ships
+//! `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test` and `chore`; a shared registry or
+//! your own config can add more). Version bumps follow [Semantic Versioning](https://semver.org/):
 //!
-//! ## Semantic Versioning
-//!
-//! Version bumping follows [Semantic Versioning](https://semver.org/) principles:
-//! - `MAJOR`: Breaking changes (`feat!` or `BREAKING CHANGE`)
-//! - `MINOR`: New features (`feat`)
-//! - `PATCH`: Bug fixes (`fix`)
+//! - **major**: a breaking change (`feat!:` or a `BREAKING CHANGE:` footer)
+//! - **minor**: a new feature (`feat`)
+//! - **patch**: a fix (`fix`) and other patch-level types
 
 pub mod cli;
 pub mod core;

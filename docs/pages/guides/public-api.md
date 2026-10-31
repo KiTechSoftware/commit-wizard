@@ -1,6 +1,8 @@
 # Public API Reference
 
-This page documents the complete configuration schema for Commit Wizard v0.0.2. All fields listed here are supported and stable.
+This page documents the configuration schema. Every field listed is accepted and validated, and a misspelled key inside a known table is an error.
+
+Most sections drive behaviour today. Four are **reserved**: `[pr]`, `[release]`, `[hooks]` and `[ai]` are accepted so that configs written now keep working, but no command reads them yet. They are marked where they appear.
 
 ## Top-level structure
 
@@ -379,7 +381,7 @@ pattern = "^(feature|bugfix|hotfix)/[a-z0-9-]+$"
 
 ## `[pr]` — Pull Request policy
 
-**Note:** Basic structure defined; full PR integration in v0.0.3+.
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet.
 
 ### `pr.enabled`
 
@@ -616,7 +618,9 @@ order = 10
 
 ---
 
-## `[release]` — Release workflow (structural in v0.0.2, full support in v0.0.3+)
+## `[release]` — Release workflow (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. To cut a release today, use [`cw tag`](../commands/tag.md) and [`cw changelog`](../commands/changelog.md).
 
 ### `release.enabled`
 
@@ -688,6 +692,18 @@ By default a project config replaces the global one: the global config only appl
 inherit = true
 ```
 
+## `[hooks]` — Git hooks (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `pre_commit`, `commit_msg` and `pre_push`, each a `bool` defaulting to `false`.
+
+---
+
+## `[ai]` — AI assistance (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `enabled` (`bool`, default `false`), `provider` (a string such as `"copilot"`), and an `[ai.commands]` table of `bool` switches named `commit`, `changelog` and `release_prepare`.
+
+---
+
 ## `[registry]` — Active registry selection
 
 ### `registry.use`
@@ -748,13 +764,12 @@ Then reference them:
 
 ```toml
 [commit.scopes.definitions]
-# Could reference @rules.allowed_scopes in future versions
 
 [commit.ticket]
 pattern = "@rules.ticket_pattern"
 ```
 
-**Current status:** Rules are stored but full cross-field referencing coming in v0.0.3+.
+**How references work.** Any *text* setting — including each item of a list of text values — can be written as `"@rules.<name>"`, and cw replaces it with the rule's value when the configuration loads. A rule can itself point at another rule. Numbers and booleans cannot be references, because they are not text: write those directly. A reference to a rule that does not exist is an error.
 
 ---
 

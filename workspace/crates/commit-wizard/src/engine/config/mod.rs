@@ -11,7 +11,7 @@
 //! - [`resolver`]: Configuration resolution logic
 //! - [`rules`]: Custom commit rules
 //! - [`registry`]: Registry configuration
-//! - [`env`]: Environment variable handling
+//! - [`env`](mod@env): Environment variable handling
 
 pub mod base;
 pub mod env;

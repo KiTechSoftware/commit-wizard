@@ -16,7 +16,7 @@ Verify installation:
 cw --version
 ```
 
-**Note:** Homebrew, Windows and Linux installers coming soon.
+**Note:** `cargo install` is the supported way to install `cw` for now; prebuilt binaries and system packages are not available yet. You need Rust 1.89 or newer, and `git` on your `PATH`.
 
 ## Quick start (5 minutes)
 
@@ -269,7 +269,7 @@ The `.cwizard.toml` file (created by `cw init`) supports these sections:
 | --- | --- |
 | `[commit]` | Commit type/scope definitions, subject length, breaking change behavior |
 | `[branch]` | Protected branches, branch naming patterns |
-| `[pr]` | PR title requirements (requires additional tooling; v0.0.2 basic support) |
+| `[pr]` | PR title requirements (reserved; no command uses it yet) |
 | `[check]` | Which branches require conventional commits |
 | `[push]` | Protected branch / force push restrictions |
 | `[versioning]` | Tag prefix, version format |
@@ -302,7 +302,7 @@ See [Command Reference](../commands/) for full details.
 - **Customize config** — Adjust scopes, types, and validation rules in `.cwizard.toml`
 - **Use in CI** — Run `cw check` as a pull request gate; `cw bump` and `cw tag` in release pipelines
 - **Share config** — Set up a registry for teams or organizations
-- **Configure hooks** — (Future in v0.0.3+) Integrate with Git hooks via `cw hook install`
+- **Git hooks** — there is no `cw` hook installer yet; to check on every push, call `cw check` from a `pre-push` hook of your own
 
 ## Help & troubleshooting
 

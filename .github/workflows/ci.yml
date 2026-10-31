@@ -70,6 +70,89 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace --all-targets --all-features --locked
 
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workspace
+    env:
+      # Broken links and invalid examples in the docs fail the build.
+      RUSTDOCFLAGS: -D warnings
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            workspace -> target
+
+      - name: Build the API docs
+        run: cargo doc --workspace --no-deps --locked
+
+      - name: Run the doctests
+        run: cargo test --workspace --doc --locked
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workspace
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            workspace -> target
+
+      # Packages the crate as crates.io would, then builds it from the tarball.
+      - name: Check the crate can be published
+        run: cargo publish -p commit-wizard --dry-run --locked
+
+      - name: Check the license files ship with the crate
+        run: |
+          cargo package -p commit-wizard --locked --list | grep -x 'LICENSE-MIT'
+          cargo package -p commit-wizard --locked --list | grep -x 'LICENSE-APACHE'
+          cargo package -p commit-wizard --locked --list | grep -x 'README.md'
+
+  msrv:
+    name: msrv
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workspace
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Must match rust-version in crates/commit-wizard/Cargo.toml.
+      - name: Install the minimum supported Rust toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - name: Cache Rust dependencies and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            workspace -> target
+
+      - name: Check the workspace builds on the minimum version
+        run: cargo check --workspace --all-targets --locked
+
   test:
     name: test
     runs-on: ubuntu-latest

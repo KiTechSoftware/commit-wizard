@@ -1,6 +1,6 @@
 # Configuration: Full
 
-Reference configuration with every supported field in v0.0.2. This is not meant to be used as-is; it's a reference for what's available.
+Reference configuration with every supported field. This is not meant to be used as-is; it's a reference for what's available.
 
 ```toml
 version = 1
@@ -152,7 +152,7 @@ pattern = "^(feature|bugfix|hotfix|release)/[a-z0-9-]+(/[a-z0-9-]+)*$"
 
 
 # ── PR configuration ────────────────────────────────────────────────
-# (Basic structure defined; full support in v0.0.3+)
+# (Reserved: accepted and validated, but no command uses it yet)
 
 [pr]
 enabled = true
@@ -251,7 +251,7 @@ title = "Chores"
 order = 13
 
 
-# ── Release configuration (v0.0.3+) ────────────────────────────────
+# ── Release configuration (reserved: no command uses it yet) ───────
 
 [release]
 enabled = false
