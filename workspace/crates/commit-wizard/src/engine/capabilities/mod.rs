@@ -5,11 +5,13 @@
 //!
 //! ## Submodules
 //!
+//! - [`changelog`]: Changelog grouping, rendering and merging
 //! - [`commit`]: Commit message validation and creation
 //! - [`config`]: Configuration management capabilities
 //! - [`usage`]: Usage tracking and reporting
 //! - [`versioning`]: Version bumping and tag management
 
+pub mod changelog;
 pub mod commit;
 pub mod config;
 pub mod usage;

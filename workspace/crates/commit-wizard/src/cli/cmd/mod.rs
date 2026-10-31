@@ -3,6 +3,7 @@
 //! This module contains the implementation of all CLI subcommands:
 //! - `add`: Stage files for commit
 //! - `bump`: Bump semantic version
+//! - `changelog`: Generate a changelog from commit history
 //! - `check`: Validate commits against Conventional Commits
 //! - `commit`: Create a structured commit interactively
 //! - `config`: Manage configuration
@@ -13,6 +14,7 @@
 
 pub mod add;
 pub mod bump;
+pub mod changelog;
 pub mod check;
 pub mod commit;
 pub mod config;

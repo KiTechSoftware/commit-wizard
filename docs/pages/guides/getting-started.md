@@ -287,6 +287,7 @@ See [Configuration Guides](../guides/configs/standard.md) for full reference and
 | `cw commit` | Write a conventional commit interactively or via flags |
 | `cw check` | Validate commit history for compliance |
 | `cw bump` | Calculate next semantic version |
+| `cw changelog` | Generate or update a changelog from commit history |
 | `cw tag` | Create a Git tag for the next release |
 | `cw push` | Push with policy checks |
 | `cw config show` | Inspect active configuration |

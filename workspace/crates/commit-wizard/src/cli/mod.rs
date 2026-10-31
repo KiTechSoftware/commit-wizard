@@ -83,6 +83,7 @@ async fn async_run() -> ExitCode {
     let result = match cli.command {
         args::Command::Add(args) => cmd::add::run(&ctx, args).await,
         args::Command::Bump(args) => cmd::bump::run(&ctx, args).await,
+        args::Command::Changelog(args) => cmd::changelog::run(&ctx, args).await,
         args::Command::Check(args) => cmd::check::run(&ctx, args).await,
         args::Command::Commit(args) => cmd::commit::run(&ctx, args).await,
         args::Command::Config(args) => cmd::config::run(&ctx, args).await,

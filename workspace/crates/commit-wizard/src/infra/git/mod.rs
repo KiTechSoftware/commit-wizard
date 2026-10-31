@@ -205,6 +205,45 @@ impl Git {
         Ok(latest.map(|(name, _)| name))
     }
 
+    /// Tags whose commit is `rev` or one of its ancestors, in no particular order.
+    pub fn tags_reachable_from(&self, rev: &str) -> Result<Vec<String>, Error> {
+        let repo = self.repo()?;
+        let head = self.revparse_oid(&repo, rev)?;
+        let tags = repo
+            .tag_names(None)
+            .map_err(|err| self.git2_error("tag_names", err))?;
+
+        let mut out = Vec::new();
+        for tag_name in tags.iter().flatten() {
+            let Ok(reference) = repo.find_reference(&format!("refs/tags/{tag_name}")) else {
+                continue;
+            };
+            let Ok(obj) = reference.peel(ObjectType::Commit) else {
+                continue;
+            };
+            let Some(commit) = obj.as_commit() else {
+                continue;
+            };
+            let id = commit.id();
+            if id == head || repo.graph_descendant_of(head, id).unwrap_or(false) {
+                out.push(tag_name.to_string());
+            }
+        }
+        Ok(out)
+    }
+
+    /// Commit time of the commit a tag points at, as Unix seconds.
+    pub fn tag_timestamp(&self, tag: &str) -> Result<Option<i64>, Error> {
+        let repo = self.repo()?;
+        let Ok(reference) = repo.find_reference(&format!("refs/tags/{tag}")) else {
+            return Ok(None);
+        };
+        let Ok(obj) = reference.peel(ObjectType::Commit) else {
+            return Ok(None);
+        };
+        Ok(obj.as_commit().map(|commit| commit.time().seconds()))
+    }
+
     pub fn tag_date(&self, tag: &str) -> Result<Option<String>, Error> {
         let repo = self.repo()?;
         let reference = match repo.find_reference(&format!("refs/tags/{tag}")) {

@@ -18,6 +18,7 @@ nav:
     - Global Flags: commands/global-flags.md
     - add: commands/add.md
     - bump: commands/bump.md
+    - changelog: commands/changelog.md
     - check: commands/check.md
     - commit: commands/commit.md
     - config: commands/config.md

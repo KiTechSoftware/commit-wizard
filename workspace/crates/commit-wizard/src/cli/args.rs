@@ -76,6 +76,8 @@ pub enum Command {
     Add(cmd::add::Args),
     /// Bump version based on Conventional Commits
     Bump(cmd::bump::Args),
+    /// Generate or update a changelog from Conventional Commit history
+    Changelog(cmd::changelog::Args),
     /// Check commits in a range for Conventional Commit compliance
     Check(cmd::check::Args),
     /// Guide the user through writing a Conventional Commit message
