@@ -276,7 +276,6 @@ pub fn run(
             None
         },
         &footers,
-        policy.breaking_footer_required,
         &policy.breaking_footer_key,
     );
 
@@ -363,7 +362,6 @@ fn build_commit_message(
     body: Option<&str>,
     breaking_message: Option<&str>,
     footers: &[String],
-    breaking_footer_required: bool,
     breaking_footer_key: &str,
 ) -> String {
     let mut out = String::from(header);
@@ -378,7 +376,7 @@ fn build_commit_message(
 
     if let Some(message) = breaking_message {
         let trimmed = message.trim();
-        if !trimmed.is_empty() && breaking_footer_required {
+        if !trimmed.is_empty() {
             out.push_str("\n\n");
             out.push_str(breaking_footer_key);
             out.push_str(": ");

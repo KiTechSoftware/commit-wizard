@@ -3,9 +3,11 @@ use std::time::Instant;
 use crate::{
     core::{Context, CoreResult},
     engine::{
+        capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
         config::resolver::{load_project_config, load_rules_config, load_standard_config},
         constants::{
             emoji::{ERROR, INFO, SUCCESS, WARN},
+            paths::resolve_new_project_config_path,
             resolve_global_config_path, resolve_global_rules_path, resolve_project_config_path,
         },
     },
@@ -360,32 +362,60 @@ pub fn fix(ctx: &Context) -> CoreResult<()> {
     ui.logger().info("Checking for fixable issues...");
 
     let sources = ctx.sources();
-    let mut fixed = 0usize;
-
-    if sources.repo_config.is_none() {
-        ui.logger().warn(&format!(
-            "{WARN}  No project config found — run 'cw configs init' to create one"
-        ));
-    } else {
-        ui.logger()
-            .ok(&format!("{SUCCESS}  Project config present"));
-        fixed += 1;
-    }
+    let mut repaired = 0usize;
+    let mut already_ok = 0usize;
+    let mut unfixable = 0usize;
 
     if !ctx.in_git_repo() {
         ui.logger().warn(&format!(
             "{WARN}  Not inside a git repository — no automatic fix available"
         ));
+        unfixable += 1;
     } else {
         ui.logger()
             .ok(&format!("{SUCCESS}  Git repository detected"));
-        fixed += 1;
+        already_ok += 1;
+
+        if sources.repo_config.is_some() {
+            ui.logger()
+                .ok(&format!("{SUCCESS}  Project config present"));
+            already_ok += 1;
+        } else {
+            let output_path = resolve_new_project_config_path(
+                ctx.cwd(),
+                Some(ctx.repo_root().as_path()),
+                true,
+                ctx.explicit_config_path().map(|p| p.as_path()),
+                true,
+            );
+            init::init_config(&ConfigContext {
+                option: ConfigOption::Project,
+                output_path: output_path.clone(),
+                spec: ConfigSpec::Standard,
+                force: false,
+                auto_yes: ctx.auto_yes(),
+                dry_run: ctx.dry_run(),
+                hidden: true,
+                with_rules: false,
+                registry_options: Default::default(),
+            })?;
+            let verb = if ctx.dry_run() {
+                "Would create"
+            } else {
+                "Created"
+            };
+            ui.logger().ok(&format!(
+                "{SUCCESS}  {verb} project config at {}",
+                output_path.display()
+            ));
+            repaired += 1;
+        }
     }
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
     ui.logger().detail("");
-    if fixed > 0 {
+    if repaired > 0 || already_ok > 0 {
         ui.logger()
             .info("Run 'cw doctor' to verify the environment.");
     }
@@ -394,11 +424,12 @@ pub fn fix(ctx: &Context) -> CoreResult<()> {
         .new_output_content()
         .title("Doctor Fix")
         .subtitle("Automatic repair attempt")
-        .key_value("checks_passed", fixed.to_string())
+        .key_value("repaired", repaired.to_string())
+        .key_value("already_ok", already_ok.to_string())
+        .key_value("unfixable", unfixable.to_string())
         .heading(1, "Repairs attempted")
         .paragraph(format!(
-            "Successfully verified {} item(s). Run 'cw doctor' to verify the full environment.",
-            fixed
+            "Repaired {repaired} item(s); {already_ok} already fine; {unfixable} could not be fixed automatically."
         ));
 
     let meta = ui
