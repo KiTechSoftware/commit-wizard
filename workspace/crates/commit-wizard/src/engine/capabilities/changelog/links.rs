@@ -60,7 +60,7 @@ impl Links {
 
 fn host_of(url: &str) -> Option<&str> {
     let rest = url.split_once("://")?.1;
-    Some(rest.split('/').next()?.rsplit('@').next()?)
+    rest.split('/').next()?.rsplit('@').next()
 }
 
 /// `https://host/owner/repo` for the usual git remote spellings.
