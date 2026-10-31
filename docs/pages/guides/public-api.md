@@ -53,11 +53,11 @@ commit:
   types:
     wip:
       description: Work in progress
-      bump: Patch
+      bump: patch
 ```
 
 ```json
-{ "commit": { "subject_max_length": 72, "types": { "wip": { "description": "Work in progress", "bump": "Patch" } } } }
+{ "commit": { "subject_max_length": 72, "types": { "wip": { "description": "Work in progress", "bump": "patch" } } } }
 ```
 
 A misspelled top-level table — `[comit]`, `chnagelog:` — is not an error, but cw warns about it with a suggestion (`unknown top-level key \`comit\`; did you mean \`commit\`?`) every time the config loads, and `cw doctor` counts it as a warning. The settings under it are ignored until it is fixed. A misspelled key *inside* a known table is still a hard error.

@@ -242,13 +242,28 @@ use = "company-standards"
 
 ## Rules inheritance
 
-Rules resolution follows this precedence:
+Rules come from the first of these that exists:
 
 ```sh
-project [rules] > registry [rules] > global [rules] > defaults
+project [rules] > registry rules.toml > global rules.toml
 ```
 
-Higher-priority `[rules]` sections override lower-priority ones.
+The chosen rules are used **whole**: a project that has a `[rules]` table does not also see the registry's rules, and the global rules file is only used when the registry has none. A `@rules.<name>` reference that the chosen rules do not define is an error.
+
+### Rules files
+
+A registry's `rules.toml` and your global `rules.toml` (in the app config directory) hold the rules directly, or inside a single `[rules]` table as in a project config; both work:
+
+```toml
+# rules.toml
+ticket_pattern = "PROJ-\\d+"
+```
+
+```toml
+# rules.toml, same rules
+[rules]
+ticket_pattern = "PROJ-\\d+"
+```
 
 ## Documentation rules
 

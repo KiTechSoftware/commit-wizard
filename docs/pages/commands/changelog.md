@@ -148,6 +148,8 @@ title = "Bug Fixes"
 order = 1                      # lower sorts first
 ```
 
+`date_format` takes a Go-style layout built from the reference date (`2006` year, `06` two-digit year, `01` or `1` month, `02` or `2` day, `Jan` or `January` month name, `Mon` or `Monday` weekday, `15` hour, `03` or `3` 12-hour clock, `04` minute, `05` second, `PM`), such as `Jan 2, 2006` for `Oct 31, 2026`; or a strftime pattern, recognised by its `%` (`%d/%m/%Y`). The default is `2006-01-02`.
+
 `show_empty_sections = true` lists every configured section (from `section_order` and `[changelog.sections.*]`) in each release, with `_No changes._` under the ones that have no commits. `show_empty_scopes = true` does the same for the scopes in `scope_order` when entries are grouped by scope. Both are off by default.
 
 ## Global flags
