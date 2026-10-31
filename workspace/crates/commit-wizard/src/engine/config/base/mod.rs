@@ -71,7 +71,7 @@ impl BaseConfig {
             release: self.release.or(lower.release),
             hooks: self.hooks.or(lower.hooks),
             ai: self.ai.or(lower.ai),
-            registry: self.registry.or(lower.registry),
+            registry: merge_registry_config(self.registry, lower.registry),
             registries: self.registries.or(lower.registries),
         }
     }
@@ -700,6 +700,31 @@ impl BaseConfig {
     }
 }
 
+/// Merge two optional `[registry]` tables field by field.
+///
+/// A higher-priority layer that sets only some fields (say `use`) must not
+/// discard the others (`required`, `cache`, `section`) from a lower layer, so
+/// a repo config can pick a registry while a global config makes it required.
+fn merge_registry_config(
+    high: Option<RegistryConfig>,
+    low: Option<RegistryConfig>,
+) -> Option<RegistryConfig> {
+    match (high, low) {
+        (None, low) => low,
+        (high, None) => high,
+        (Some(h), Some(l)) => Some(RegistryConfig {
+            // An empty `use` means "not chosen", so it must not mask a lower layer.
+            use_registry: h
+                .use_registry
+                .filter(|name| !name.trim().is_empty())
+                .or(l.use_registry),
+            section: h.section.or(l.section),
+            required: h.required.or(l.required),
+            cache: h.cache.or(l.cache),
+        }),
+    }
+}
+
 /// Deep-merge two optional CommitConfigs.
 ///
 /// Each sub-field is merged independently so that a higher-priority layer can
@@ -724,5 +749,72 @@ fn merge_commit_config(
             protected: h.protected.or(l.protected),
             ticket: h.ticket.or(l.ticket),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_registry(registry: RegistryConfig) -> BaseConfig {
+        BaseConfig {
+            registry: Some(registry),
+            ..BaseConfig::empty()
+        }
+    }
+
+    fn registry(
+        use_registry: Option<&str>,
+        required: Option<bool>,
+        cache: Option<bool>,
+    ) -> RegistryConfig {
+        RegistryConfig {
+            use_registry: use_registry.map(str::to_string),
+            section: None,
+            required,
+            cache,
+        }
+    }
+
+    #[test]
+    fn registry_fields_merge_instead_of_replacing_the_table() {
+        let global = with_registry(registry(None, Some(true), Some(false)));
+        let repo = with_registry(registry(Some("team"), None, None));
+
+        let merged = repo.merge(global);
+
+        assert_eq!(merged.registry_use().as_deref(), Some("team"));
+        assert!(merged.registry_required(), "global required must survive");
+        assert!(
+            !merged.registry_cache(),
+            "global cache = false must survive"
+        );
+    }
+
+    #[test]
+    fn higher_layer_wins_per_field() {
+        let global = with_registry(registry(Some("global"), Some(true), Some(true)));
+        let repo = with_registry(registry(Some("repo"), Some(false), None));
+
+        let merged = repo.merge(global);
+
+        assert_eq!(merged.registry_use().as_deref(), Some("repo"));
+        assert!(!merged.registry_required());
+        assert!(merged.registry_cache());
+    }
+
+    #[test]
+    fn empty_use_does_not_mask_a_lower_layer() {
+        let global = with_registry(registry(Some("global"), None, None));
+        let repo = with_registry(registry(Some(""), None, None));
+
+        assert_eq!(repo.merge(global).registry_use().as_deref(), Some("global"));
+    }
+
+    #[test]
+    fn registry_defaults_when_no_layer_sets_them() {
+        let merged = BaseConfig::empty().merge(BaseConfig::empty());
+        assert!(!merged.registry_required());
+        assert!(merged.registry_cache());
     }
 }

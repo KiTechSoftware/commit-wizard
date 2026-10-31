@@ -710,8 +710,23 @@ impl Runtime {
             let path = self.project_config_path();
             self.resolution.config = Some(ResolvedConfig { path, rules, base });
             self.resolve_policy();
+        } else {
+            // Rule 1: No config sources at all (including a registry that failed to
+            // load): run on the built-in defaults rather than leaving the config
+            // unresolved, which every command treats as an error.
+            use crate::engine::config::resolver::merge_rules_into_base;
+            let rules = crate::engine::config::RulesConfig::default();
+            let base = merge_rules_into_base(
+                crate::engine::constants::defaults::config::standard_base_config(),
+                &rules,
+            )?;
+            self.resolution.config = Some(ResolvedConfig {
+                path: None,
+                rules,
+                base,
+            });
+            self.resolve_policy();
         }
-        // Rule 1: If no config sources, do nothing—policy remains at engine defaults.
 
         Ok(())
     }

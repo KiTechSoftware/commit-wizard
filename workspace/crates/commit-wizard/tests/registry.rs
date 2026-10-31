@@ -257,3 +257,90 @@ fn stale_cache_is_used_when_a_branch_registry_cannot_sync() {
     assert!(second.status.success(), "{}", text(&second));
     assert_eq!(repo.subjects()[0], "wip: second");
 }
+
+// --- layering: global config vs repo config --------------------------------
+
+#[test]
+fn global_required_applies_when_the_repo_registry_table_omits_it() {
+    let repo = repo_using("file:///definitely/not/a/registry");
+    repo.write_global_config("[registry]\nrequired = true\n");
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(!out.status.success(), "{}", text(&out));
+    assert!(
+        text(&out).contains("Registry sync failed"),
+        "{}",
+        text(&out)
+    );
+}
+
+#[test]
+fn repo_can_override_a_global_required() {
+    let repo = repo_with(
+        "file:///definitely/not/a/registry",
+        "v0.1.0",
+        "required = false",
+    );
+    repo.write_global_config("[registry]\nrequired = true\n");
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        text(&out).contains("Registry load failed"),
+        "{}",
+        text(&out)
+    );
+}
+
+#[test]
+fn global_cache_setting_applies_to_the_repo_registry() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_with(&file_url(reg.path()), "v0.1.0", "required = true");
+    repo.write_global_config("[registry]\ncache = false\n");
+
+    let first = repo.cw(&["commit", "-t", "wip", "-m", "first"]);
+    assert!(first.status.success(), "{}", text(&first));
+
+    drop(reg); // global cache = false: nothing was kept
+    repo.write("y.txt", "y");
+    repo.git(&["add", "y.txt"]);
+    let second = repo.cw(&["commit", "-t", "wip", "-m", "second"]);
+    assert!(!second.status.success(), "{}", text(&second));
+}
+
+// --- no usable config: built-in defaults ------------------------------------
+
+#[test]
+fn commands_run_on_defaults_when_there_is_no_config_at_all() {
+    let repo = Repo::bare();
+    repo.write("x.txt", "x");
+    repo.git(&["add", "-A"]);
+
+    let out = repo.cw(&["commit", "-t", "feat", "-m", "first"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(repo.subjects()[0], "feat: first");
+
+    let check = repo.cw(&["check"]);
+    assert!(check.status.success(), "{}", text(&check));
+}
+
+#[test]
+fn failed_cli_registry_falls_back_to_defaults_instead_of_failing() {
+    let repo = Repo::bare();
+    repo.write("x.txt", "x");
+    repo.git(&["add", "-A"]);
+
+    let out = repo.cw(&[
+        "commit",
+        "--registry",
+        "file:///definitely/not/a/registry",
+        "-t",
+        "feat",
+        "-m",
+        "first",
+    ]);
+    let output = text(&out);
+    assert!(output.contains("Registry load failed"), "{output}");
+    assert!(!output.contains("Config not resolved"), "{output}");
+    assert!(out.status.success(), "{output}");
+}

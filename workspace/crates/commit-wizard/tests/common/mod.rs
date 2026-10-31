@@ -292,6 +292,13 @@ impl Repo {
             .collect()
     }
 
+    /// Write the global (per-user) config file for this repo's isolated HOME.
+    pub fn write_global_config(&self, contents: &str) {
+        let dir = self.home.path().join("cwizard");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.toml"), contents).unwrap();
+    }
+
     pub fn write(&self, name: &str, contents: &str) {
         std::fs::write(self.path().join(name), contents).unwrap();
     }

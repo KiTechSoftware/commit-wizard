@@ -202,6 +202,30 @@ command, including when `use` names a registry that is not configured. Only
 the active registry is affected; other registries in `[registries.*]` that
 fail to load are always warnings.
 
+### Layering across config files
+
+The `[registry]` table is merged field by field across layers (CLI > env > repo
+> global), so a layer only overrides the fields it sets. A global
+`required = true` still applies when a repo config only sets `use` and
+`section`; the repo can opt out with `required = false`.
+
+```toml
+# ~/.config/cwizard/config.toml
+[registry]
+required = true
+
+# .cwizard.toml  (use/section from here, required from the global file)
+[registry]
+use = "my-org"
+section = "backend"
+```
+
+### Running without any config
+
+When there is no project config, no global config and no usable registry (for
+example a registry that failed to load and is not `required`), `cw` runs on the
+built-in defaults instead of failing.
+
 ## Resolution precedence
 
 Behavior and rules follow separate, well-defined precedence chains:
