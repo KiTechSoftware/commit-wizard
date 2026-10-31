@@ -14,7 +14,19 @@ pub struct Repo {
 }
 
 impl Repo {
+    /// A git repo with one commit and a generated cw config.
     pub fn new() -> Self {
+        let repo = Self::bare();
+        // A generated config keeps the tests offline (no registry fetch).
+        let init = repo.cw(&["init"]);
+        assert!(init.status.success(), "init failed: {}", text(&init));
+        repo.git(&["add", "-A"]);
+        repo.commit("chore: init");
+        repo
+    }
+
+    /// A git repo with a remote but no cw config and no commits.
+    pub fn bare() -> Self {
         let repo = Self {
             dir: TempDir::new().unwrap(),
             home: TempDir::new().unwrap(),
@@ -37,10 +49,6 @@ impl Repo {
             "origin",
             repo.remote.path().to_str().unwrap(),
         ]);
-        // A generated config keeps the tests offline (no registry fetch).
-        let init = repo.cw(&["init"]);
-        assert!(init.status.success(), "init failed: {}", text(&init));
-        repo.commit("chore: init");
         repo
     }
 
@@ -185,4 +193,93 @@ impl Repo {
 pub fn released(repo: &Repo, version: &str) {
     let out = repo.tag(&["--set-version", version]);
     assert!(out.status.success(), "tag {version}: {}", text(&out));
+}
+
+/// An interactive `cw` process attached to a pseudo-terminal.
+#[cfg(unix)]
+pub struct Pty {
+    session: expectrl::session::OsSession,
+}
+
+#[cfg(unix)]
+impl Pty {
+    /// Wait until `text` appears in the output.
+    pub fn expect(&mut self, text: &str) {
+        use expectrl::Expect;
+        if let Err(err) = self.session.expect(text) {
+            let mut buf = [0u8; 8192];
+            let seen = self.session.try_read(&mut buf).unwrap_or(0);
+            panic!(
+                "waiting for {text:?}: {err}\nunmatched output: {:?}",
+                String::from_utf8_lossy(&buf[..seen])
+            );
+        }
+    }
+
+    /// Type text without pressing Enter.
+    pub fn send(&mut self, text: &str) {
+        use expectrl::Expect;
+        self.session.send(text).unwrap();
+    }
+
+    /// Type text and press Enter.
+    pub fn line(&mut self, text: &str) {
+        use expectrl::Expect;
+        self.session.send_line(text).unwrap();
+    }
+
+    /// Wait (bounded) for the process to exit and report whether it succeeded.
+    /// A process that is still running after the deadline is killed.
+    pub fn finish(mut self) -> bool {
+        use expectrl::{Expect, process::unix::WaitStatus};
+        // Drain the pty so the process can finish writing and exit.
+        let _ = self.session.expect(expectrl::Eof);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            match self.session.get_process().status() {
+                Ok(WaitStatus::Exited(_, code)) => return code == 0,
+                Ok(WaitStatus::StillAlive) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                _ => return false,
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for Pty {
+    fn drop(&mut self) {
+        // Never leave a prompt-blocked `cw` behind when a test fails early.
+        let _ = self.session.get_process_mut().exit(true);
+    }
+}
+
+#[cfg(unix)]
+impl Repo {
+    /// Start `cw` attached to a pty so it behaves interactively.
+    pub fn cw_pty(&self, args: &[&str]) -> Pty {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_cw"));
+        cmd.args(args)
+            .current_dir(self.path())
+            .env("HOME", self.home.path())
+            .env("XDG_CONFIG_HOME", self.home.path())
+            .env("NO_COLOR", "1")
+            .env("TERM", "xterm");
+        let mut session = expectrl::Session::spawn(cmd).unwrap();
+        session.set_expect_timeout(Some(std::time::Duration::from_secs(10)));
+        Pty { session }
+    }
+
+    /// Subject lines of all commits, newest first.
+    pub fn subjects(&self) -> Vec<String> {
+        self.git(&["log", "--format=%s"])
+            .lines()
+            .map(str::to_string)
+            .collect()
+    }
+
+    pub fn write(&self, name: &str, contents: &str) {
+        std::fs::write(self.path().join(name), contents).unwrap();
+    }
 }
