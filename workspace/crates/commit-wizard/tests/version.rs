@@ -121,3 +121,18 @@ fn prerelease_is_promoted_by_bump_and_tag() {
     repo.commit("fix: later");
     assert_eq!(repo.next_tag(), "v1.1.1");
 }
+
+#[test]
+fn suffix_may_start_with_a_hyphen() {
+    let repo = Repo::new();
+    released(&repo, "1.0.0");
+    repo.commit("feat: next");
+
+    let out = repo.tag(&["--suffix", "-rc1"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        repo.tags().contains(&"v1.1.0-rc1".to_string()),
+        "{:?}",
+        repo.tags()
+    );
+}

@@ -11,7 +11,7 @@ use crate::{
 #[command(about = "Inspect and manage Commit Wizard configuration")]
 pub struct Args {
     /// Edit the global config instead of project config
-    #[arg(short = 'g', long = "global", conflicts_with = "config")]
+    #[arg(short = 'g', long = "global", global = true, conflicts_with = "config")]
     pub global: bool,
     #[command(subcommand)]
     pub subcommand: ConfigSubcommand,

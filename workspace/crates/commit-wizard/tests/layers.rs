@@ -105,3 +105,19 @@ fn the_opt_in_can_be_set_from_the_cli_and_shows_in_the_effective_view() {
     let view = text(&repo.cw(&["config", "list", "--effective", "commit.subject"]));
     assert!(view.contains("11") && view.contains("global"), "{view}");
 }
+
+#[test]
+fn global_flag_works_before_or_after_the_config_subcommand() {
+    let repo = Repo::bare();
+    let before = repo.cw(&[
+        "config",
+        "--global",
+        "set",
+        "commit.subject_max_length",
+        "61",
+    ]);
+    assert!(before.status.success(), "{}", text(&before));
+    let after = repo.cw(&["config", "get", "commit.subject_max_length", "--global"]);
+    assert!(after.status.success(), "{}", text(&after));
+    assert!(text(&after).contains("61"), "{}", text(&after));
+}

@@ -21,7 +21,7 @@ pub struct Args {
     pub prefix: Option<String>,
 
     /// Tag suffix (e.g., -rc1)
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     pub suffix: Option<String>,
 
     /// Create GPG-signed tag
