@@ -34,7 +34,7 @@ cw add --all
 cw add --unstage src/main.rs
 ```
 
-**Stage only unstaged files** (skip files already in the index):
+**Pick from unstaged files only** (hides files already in the index; needs a terminal, since it opens the picker):
 
 ```sh
 cw add --exclude-staged

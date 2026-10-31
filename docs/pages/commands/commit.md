@@ -69,8 +69,8 @@ cw commit --dry-run -t feat -m "my new feature"
 
 <body>
 
-<footer-token>: <footer-value>
 BREAKING CHANGE: <breaking-message>
+<footer-token>: <footer-value>
 ```
 
 Example:
@@ -90,9 +90,9 @@ Scope behaviour is controlled by `commit.scopes.mode` in config:
 
 | Mode | Effect |
 | --- | --- |
-| `disabled` | Scope field is hidden entirely |
-| `optional` | Scope is prompted but can be skipped |
-| `required` | A scope must be provided |
+| `disabled` | Scopes are not used: the question is never asked, and `--scope` is refused |
+| `optional` | On a terminal you are asked whether to add a scope (the default answer is no); with flags, a scope is added only if you pass `--scope` |
+| `required` | A scope must be provided; without a terminal, a missing `--scope` is an error |
 
 When `commit.scopes.restrict_to_defined = true`, only scopes defined in `[commit.scopes.definitions]` are accepted.
 
