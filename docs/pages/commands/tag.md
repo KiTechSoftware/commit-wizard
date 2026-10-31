@@ -8,6 +8,20 @@ Create a SemVer Git tag derived from Conventional Commit history. Optionally sig
 cw tag [OPTIONS]
 ```
 
+## Guided mode
+
+Run `cw tag` on a terminal and it walks you through the tag, asking only about what you did not already give as a flag:
+
+1. **Version** — "Use the next version, v1.4.0?" (worked out from the commits since the last tag). Answer no to type another one. If the proposed tag already exists because nothing new needs releasing, it goes straight to asking for a version.
+2. **Tag prefix** — pre-filled with the project's prefix (usually `v`); press Enter to keep it.
+3. **Prerelease label** — for example `rc` or `beta` to get `v1.4.0-rc.1`; leave empty for a normal release. Skipped when the version is already a prerelease.
+4. **Sign the tag with GPG?**
+5. **Push the tag after creating it?** — and, if yes, **which remote** (default `origin`).
+6. **Tag message** — pre-filled with `Release 1.4.0`.
+7. A final **"Create tag v1.4.0, and push it to origin?"**. Answering no cancels cleanly and creates nothing.
+
+Each flag answers its question up front, so `cw tag --set-version 2.0.0 --sign` asks only about the prefix, label, push and message. In scripts and CI, and with `--yes`, `--ci` or `--non-interactive`, there are no questions: the flags and the commit history decide everything, as before.
+
 ## Examples
 
 **Auto-calculate the next version and tag:**

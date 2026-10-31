@@ -265,7 +265,8 @@ impl Repo {
             .env("HOME", self.home.path())
             .env("XDG_CONFIG_HOME", self.home.path())
             .env("NO_COLOR", "1")
-            .env("TERM", "xterm");
+            .env("TERM", "xterm")
+            .envs(self.gnupg.iter().map(|g| ("GNUPGHOME", g.path())));
         let mut session = expectrl::Session::spawn(cmd).unwrap();
         session.set_expect_timeout(Some(std::time::Duration::from_secs(10)));
         Pty { session }
