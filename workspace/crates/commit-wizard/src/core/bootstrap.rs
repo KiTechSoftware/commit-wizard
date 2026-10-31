@@ -32,8 +32,26 @@ pub struct AppContextArgs {
     pub registry_section: Option<String>,
 }
 
+/// Whether a person is at the keyboard: both input and output are terminals.
+fn on_terminal() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+/// The run mode. Prompting is the default, but only when it can work: without
+/// a terminal (a script, a pipe) or with machine-readable output, cw behaves
+/// as if `--non-interactive` had been given.
+fn resolve_mode(ci: bool, non_interactive: bool, json: bool, terminal: bool) -> RunMode {
+    let mode = RunMode::from_flags(ci, non_interactive);
+    if mode == RunMode::Interactive && (json || !terminal) {
+        RunMode::NonInteractive
+    } else {
+        mode
+    }
+}
+
 pub fn build_app_context(args: AppContextArgs) -> Result<Context> {
-    let mode = RunMode::from_flags(args.ci, args.non_interactive);
+    let mode = resolve_mode(args.ci, args.non_interactive, args.json, on_terminal());
 
     let output_color = if args.output_color == "auto" {
         if mode == RunMode::Interactive {
@@ -84,4 +102,35 @@ pub fn build_app_context(args: AppContextArgs) -> Result<Context> {
     ctx.resolve_active_config()?;
 
     Ok(ctx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompting_needs_a_terminal_and_human_readable_output() {
+        assert_eq!(
+            resolve_mode(false, false, false, true),
+            RunMode::Interactive
+        );
+        assert_eq!(
+            resolve_mode(false, false, false, false),
+            RunMode::NonInteractive
+        );
+        assert_eq!(
+            resolve_mode(false, false, true, true),
+            RunMode::NonInteractive
+        );
+    }
+
+    #[test]
+    fn explicit_flags_win_over_the_terminal_check() {
+        assert_eq!(resolve_mode(true, false, false, true), RunMode::Ci);
+        assert_eq!(resolve_mode(true, false, false, false), RunMode::Ci);
+        assert_eq!(
+            resolve_mode(false, true, false, true),
+            RunMode::NonInteractive
+        );
+    }
 }

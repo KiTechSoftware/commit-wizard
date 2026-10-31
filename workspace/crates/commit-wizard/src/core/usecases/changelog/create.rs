@@ -1,4 +1,4 @@
-use std::{fs, io::IsTerminal, path::PathBuf, time::Instant};
+use std::{fs, path::PathBuf, time::Instant};
 
 use scriba::{SelectOption, SelectRequest};
 
@@ -126,9 +126,10 @@ fn ask(ctx: &Context, mut options: Options) -> CoreResult<Options> {
 }
 
 pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
-    // Only on a real terminal: a bare `cw changelog` in a script or CI must just run.
-    let on_terminal = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
-    let options = if ctx.is_interactive() && on_terminal && options.is_untouched() {
+    // The menu is for a person at a terminal who gave no options; the run mode
+    // already accounts for scripts, CI and machine-readable output, and --yes
+    // asks for the defaults.
+    let options = if ctx.is_interactive() && !ctx.auto_yes() && options.is_untouched() {
         ask(ctx, options)?
     } else {
         options

@@ -13,7 +13,10 @@ use crate::{
             runtime::{AvailableConfigOptions, ResolvedConfig, Runtime, mode::RunMode},
         },
     },
-    infra::{git::Git, ui::Ui},
+    infra::{
+        git::Git,
+        ui::{PromptPolicy, Ui},
+    },
 };
 
 pub type AppResult<T> = Result<T, Error>;
@@ -110,8 +113,26 @@ impl Context {
         self.runtime.output_config()
     }
 
+    /// What to do when a command asks a question:
+    /// `--yes` and `--ci` accept defaults, a terminal session asks, and
+    /// everything else (`--non-interactive`, no terminal, `--json`) refuses.
+    pub fn prompt_policy(&self) -> PromptPolicy {
+        use crate::engine::models::runtime::mode::RunMode;
+        if self.runtime.options().auto_yes() || matches!(self.runtime.mode(), RunMode::Ci) {
+            PromptPolicy::Defaults
+        } else if self.runtime.is_interactive() {
+            PromptPolicy::Ask
+        } else {
+            PromptPolicy::Refuse
+        }
+    }
+
     pub fn ui(&self) -> Ui {
-        Ui::cached_with_config(self.ui_config(), self.runtime.options().output_envelope())
+        Ui::cached_with_config(
+            self.ui_config(),
+            self.runtime.options().output_envelope(),
+            self.prompt_policy(),
+        )
     }
 
     pub fn git(&self) -> Git {
