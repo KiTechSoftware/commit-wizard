@@ -34,7 +34,12 @@ pub fn run(
 
     let raw_commits = git.list_commits(from.as_deref(), &to)?;
     let checked = validate_commits(raw_commits, &policy);
-    let report = evaluate_push(push_policy, &push_branch, checked.commits);
+    let mut report = evaluate_push(push_policy, &push_branch, checked.commits);
+    // --force overrides policy blocks; the reasons are still reported.
+    let forced = report.blocked && ctx.force();
+    if forced {
+        report.blocked = false;
+    }
 
     let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -88,7 +93,11 @@ pub fn run(
         .with_dry_run(ctx.dry_run());
 
     if report.blocked {
-        return ui.print_with_meta(&content, Some(&meta), true);
+        ui.print_with_meta(&content, Some(&meta), false)?;
+        return Err(ErrorCode::GitPushBlocked
+            .error()
+            .with_context("branch", push_branch)
+            .with_context("reasons", report.block_reasons.join("; ")));
     }
 
     if ctx.dry_run() {

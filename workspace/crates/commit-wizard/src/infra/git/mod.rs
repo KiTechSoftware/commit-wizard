@@ -239,7 +239,12 @@ impl Git {
             .map_err(|err| self.git2_error("signature", err))?;
 
         repo.tag(name, &obj, &sig, message, false)
-            .map_err(|err| self.git2_error("tag", err))?;
+            .map_err(|err| match err.code() {
+                git2::ErrorCode::Exists => ErrorCode::ReleaseTagExists
+                    .error()
+                    .with_context("tag", name.to_string()),
+                _ => self.git2_error("tag", err),
+            })?;
 
         Ok(())
     }
