@@ -276,7 +276,9 @@ impl Repo {
         session.set_expect_timeout(Some(std::time::Duration::from_secs(10)));
         Pty { session }
     }
+}
 
+impl Repo {
     /// Subject lines of all commits, newest first.
     pub fn subjects(&self) -> Vec<String> {
         self.git(&["log", "--format=%s"])
