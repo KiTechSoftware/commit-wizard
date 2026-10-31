@@ -261,24 +261,38 @@ export CW_COMMIT_SCOPES_MODE=required
 
 ### Replacing part or all of a registry
 
-Local config takes precedence, so a project can keep a registry as its base and
-replace only the parts it needs. Whatever the local config does not set keeps
-coming from the registry.
+Local config takes precedence, and layers are merged recursively: tables are
+combined key by key, and a higher layer wins only for the values it sets.
+Anything the local config does not mention keeps coming from the registry, so a
+project can change one setting, one commit type, or one field of a type.
 
-Inside `[commit]`, each setting is replaced on its own:
+```toml
+# registry: [commit.types.fix] description = "A bug fix", bump = "Patch"
 
-| Local config sets | Result |
-|---|---|
-| `subject_max_length`, `use_emojis` | Only that value changes; types, scopes, etc. stay from the registry |
-| `[commit.scopes]` | Scope policy is local; types stay from the registry |
-| `[commit.types.*]` | The registry's type list is replaced entirely by the local types |
-| nothing under `[commit]` | The registry's commit settings apply as-is |
+# .cwizard.toml
+[commit]
+subject_max_length = 72        # changes one value; types and scopes still come from the registry
 
-Replacement is per setting, not per entry: defining one `[commit.types.fix]`
-replaces the registry's whole type list rather than adding to it. To change a
-single type, redefine the types you want to keep alongside it. Other top-level
-tables (`[versioning]`, `[changelog]`, `[push]`, ...) are replaced as a whole
-table when the local config defines them.
+[commit.types.fix]
+bump = "Minor"                 # changes one field; description etc. stay from the registry
+
+[commit.types.docs]            # adds a type the registry does not have
+description = "Documentation"
+
+[commit.types.chore]
+enabled = false                # drops a registry type
+```
+
+Rules of the merge:
+
+- **Tables** (`[commit]`, `[commit.types.fix]`, `[push.allow]`, `[versioning]`, ...)
+  are merged field by field.
+- **Arrays** (such as `[branch] protected = [...]`) are replaced by the higher
+  layer, not concatenated.
+- **Dropping a commit type** from a lower layer is done with
+  `enabled = false` on that type.
+- **Replacing everything** is just defining all of it locally; a registry is
+  only a base.
 
 ### Rules precedence (reusable values)
 

@@ -45,6 +45,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "feat".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("✨".to_string()),
             description: Some("A new feature".to_string()),
             bump: Some(BumpLevel::Minor),
@@ -55,6 +56,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "fix".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("🐛".to_string()),
             description: Some("A bug fix".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -65,6 +67,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "docs".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("📚".to_string()),
             description: Some("Documentation changes".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -75,6 +78,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "style".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("🎨".to_string()),
             description: Some("Code style changes".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -85,6 +89,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "refactor".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("♻️".to_string()),
             description: Some("Code refactoring".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -95,6 +100,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "perf".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("⚡".to_string()),
             description: Some("Performance improvements".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -105,6 +111,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "test".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("✅".to_string()),
             description: Some("Test changes".to_string()),
             bump: Some(BumpLevel::Patch),
@@ -115,6 +122,7 @@ pub fn default_commit_types() -> BTreeMap<String, CommitTypeConfig> {
     map.insert(
         "chore".to_string(),
         CommitTypeConfig {
+            enabled: None,
             emoji: Some("🔧".to_string()),
             description: Some("Maintenance chores".to_string()),
             bump: Some(BumpLevel::Patch),

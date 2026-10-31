@@ -37,6 +37,10 @@ pub struct CommitConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CommitTypeConfig {
+    /// Set to `false` to drop a type inherited from a lower layer (for example
+    /// a registry) without redefining the rest of the type list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
     #[serde(
         default,
         deserialize_with = "deserialize_optional_string",

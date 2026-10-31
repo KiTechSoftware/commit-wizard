@@ -379,23 +379,53 @@ fn local_scalar_overrides_one_setting_and_keeps_registry_types() {
 }
 
 #[test]
-fn local_types_replace_all_registry_types() {
+fn local_types_add_to_the_registry_types() {
     let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
     let repo = repo_overriding(
         &file_url(reg.path()),
         "[commit.types.fix]\ndescription = \"A bug fix\"\nbump = \"Patch\"\nsection = \"Fixes\"",
     );
 
-    let ok = repo.cw(&["commit", "-t", "fix", "-m", "local type"]);
-    assert!(ok.status.success(), "{}", text(&ok));
-
-    repo.write("y.txt", "y");
-    repo.git(&["add", "y.txt"]);
-    // `wip` and `feat` came from the registry and are now replaced.
-    for ty in ["wip", "feat"] {
-        let out = repo.cw(&["commit", "-t", ty, "-m", "gone"]);
-        assert!(!out.status.success(), "{ty}: {}", text(&out));
+    // The local type is new, and the registry's types are still there.
+    for (ty, msg) in [("fix", "local type"), ("wip", "registry type")] {
+        repo.write(&format!("{ty}.txt"), ty);
+        repo.git(&["add", "-A"]);
+        let out = repo.cw(&["commit", "-t", ty, "-m", msg]);
+        assert!(out.status.success(), "{ty}: {}", text(&out));
     }
+}
+
+#[test]
+fn local_type_can_be_disabled_with_enabled_false() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    let repo = repo_overriding(&file_url(reg.path()), "[commit.types.wip]\nenabled = false");
+
+    let dropped = repo.cw(&["commit", "-t", "wip", "-m", "gone"]);
+    assert!(!dropped.status.success(), "{}", text(&dropped));
+
+    // Every other registry type is untouched.
+    let kept = repo.cw(&["commit", "-t", "feat", "-m", "still here"]);
+    assert!(kept.status.success(), "{}", text(&kept));
+}
+
+#[test]
+fn local_override_of_one_type_field_keeps_the_rest_of_that_type() {
+    let reg = registry(&[("custom/config.toml", CUSTOM_CONFIG)]);
+    // The registry makes `wip` a patch bump; the project makes it a minor one.
+    let repo = repo_overriding(
+        &file_url(reg.path()),
+        "[commit.types.wip]\nbump = \"Minor\"",
+    );
+    repo.git(&["commit", "-q", "--allow-empty", "-m", "chore: base"]);
+    let tagged = repo.tag(&["--set-version", "1.0.0"]);
+    assert!(tagged.status.success(), "{}", text(&tagged));
+
+    // `wip` is still a known type from the registry, but now bumps minor.
+    repo.write("wip.txt", "wip");
+    repo.git(&["add", "-A"]);
+    let out = repo.cw(&["commit", "-t", "wip", "-m", "tweak"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(repo.next_tag(), "v1.1.0");
 }
 
 #[test]

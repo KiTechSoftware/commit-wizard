@@ -59,7 +59,22 @@ impl BaseConfig {
 
     /// Merge two configs. `self` has higher priority — its sections win over `lower` for each
     /// top-level section, falling back to `lower` only when `self`'s section is `None`.
+    /// Merge two layers, with `self` taking precedence over `lower`.
+    ///
+    /// The merge is recursive: tables are combined key by key and the higher
+    /// layer wins only for the leaves it actually sets. A local config can
+    /// therefore change one commit type, one scope policy value or one
+    /// versioning field and keep everything else from the layer below (for
+    /// example a registry). Arrays are replaced, not concatenated.
     pub fn merge(self, lower: BaseConfig) -> BaseConfig {
+        match deep_merge_configs(&self, &lower) {
+            Some(merged) => merged,
+            None => self.shallow_merge(lower),
+        }
+    }
+
+    /// Per-table merge used if the recursive merge cannot round-trip.
+    fn shallow_merge(self, lower: BaseConfig) -> BaseConfig {
         BaseConfig {
             commit: merge_commit_config(self.commit, lower.commit),
             branch: self.branch.or(lower.branch),
@@ -700,6 +715,33 @@ impl BaseConfig {
     }
 }
 
+/// Recursively merge `high` over `low` through their TOML representation.
+/// Returns `None` if either side cannot be converted, so callers can fall back.
+fn deep_merge_configs(high: &BaseConfig, low: &BaseConfig) -> Option<BaseConfig> {
+    let mut merged = toml::Value::try_from(low).ok()?;
+    deep_merge_values(&mut merged, toml::Value::try_from(high).ok()?);
+    let mut config: BaseConfig = merged.try_into().ok()?;
+    // `use` has its own rule: an empty value must not mask a lower layer.
+    config.registry = merge_registry_config(high.registry.clone(), low.registry.clone());
+    Some(config)
+}
+
+fn deep_merge_values(low: &mut toml::Value, high: toml::Value) {
+    match (low, high) {
+        (toml::Value::Table(low), toml::Value::Table(high)) => {
+            for (key, value) in high {
+                match low.get_mut(&key) {
+                    Some(existing) => deep_merge_values(existing, value),
+                    None => {
+                        low.insert(key, value);
+                    }
+                }
+            }
+        }
+        (low, high) => *low = high,
+    }
+}
+
 /// Merge two optional `[registry]` tables field by field.
 ///
 /// A higher-priority layer that sets only some fields (say `use`) must not
@@ -816,5 +858,93 @@ mod tests {
         let merged = BaseConfig::empty().merge(BaseConfig::empty());
         assert!(!merged.registry_required());
         assert!(merged.registry_cache());
+    }
+
+    fn parse(toml: &str) -> BaseConfig {
+        toml::from_str(toml).expect("valid config")
+    }
+
+    #[test]
+    fn commit_types_merge_per_type_and_per_field() {
+        let registry = parse(
+            r#"
+[commit.types.fix]
+description = "A bug fix"
+bump = "Patch"
+section = "Bug Fixes"
+
+[commit.types.wip]
+description = "Work in progress"
+bump = "Patch"
+"#,
+        );
+        let local = parse(
+            r#"
+[commit.types.fix]
+bump = "Minor"
+
+[commit.types.wip]
+enabled = false
+
+[commit.types.docs]
+description = "Documentation"
+"#,
+        );
+
+        let types = local.merge(registry).commit_types();
+
+        let fix = &types["fix"];
+        assert_eq!(
+            fix.description.as_deref(),
+            Some("A bug fix"),
+            "kept from below"
+        );
+        assert_eq!(fix.section.as_deref(), Some("Bug Fixes"), "kept from below");
+        assert!(
+            matches!(
+                fix.bump,
+                Some(crate::engine::models::policy::enforcement::BumpLevel::Minor)
+            ),
+            "overridden locally"
+        );
+        assert_eq!(types["wip"].enabled, Some(false));
+        assert_eq!(types["docs"].description.as_deref(), Some("Documentation"));
+        assert_eq!(types.len(), 3);
+    }
+
+    #[test]
+    fn other_tables_merge_per_field() {
+        let registry = parse("[push.allow]\nprotected = true\nforce = false\n");
+        let local = parse("[push.allow]\nforce = true\n");
+
+        let allow = local.merge(registry).push.unwrap().allow.unwrap();
+
+        assert_eq!(allow.protected, Some(true), "kept from below");
+        assert_eq!(allow.force, Some(true), "overridden locally");
+    }
+
+    #[test]
+    fn arrays_are_replaced_not_concatenated() {
+        let registry = parse("[branch]\nprotected = [\"main\", \"release/*\"]\n");
+        let local = parse("[branch]\nprotected = [\"trunk\"]\n");
+
+        let merged = local.merge(registry);
+
+        assert_eq!(
+            merged.branch.unwrap().protected,
+            Some(vec!["trunk".to_string()])
+        );
+    }
+
+    #[test]
+    fn merging_is_associative_across_three_layers() {
+        let low = parse("[commit]\nsubject_max_length = 100\nuse_emojis = false\n");
+        let mid = parse("[commit]\nuse_emojis = true\n");
+        let high = parse("[commit]\nsubject_max_length = 50\n");
+
+        let merged = high.merge(mid.merge(low));
+
+        assert_eq!(merged.commit_subject_max_length(), 50);
+        assert!(merged.commit_use_emojis());
     }
 }
