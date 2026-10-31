@@ -43,9 +43,10 @@ fn next_version(
     git: &crate::infra::git::Git,
     versioning_model: &VersioningModel,
     commit_model: &CommitModel,
+    rev: &str,
 ) -> CoreResult<Version> {
     let last_tag = git
-        .latest_tag()
+        .latest_tag_from(rev)
         .map_err(|_| ErrorCode::GitCommandFailed.error())?;
 
     let current_version = last_tag
@@ -53,7 +54,7 @@ fn next_version(
         .and_then(|tag| Version::parse(tag, &versioning_model.tag_prefix));
 
     let commits = git
-        .list_commits(last_tag.as_deref(), "HEAD")
+        .list_commits(last_tag.as_deref(), rev)
         .map_err(|_| ErrorCode::GitCommandFailed.error())?;
 
     if commits.is_empty() {
@@ -81,6 +82,7 @@ fn ask_about_the_tag(
     ctx: &Context,
     versioning_model: &VersioningModel,
     commit_model: &CommitModel,
+    rev: &str,
     choices: &mut Choices,
 ) -> CoreResult<()> {
     let ui = ctx.ui();
@@ -88,7 +90,7 @@ fn ask_about_the_tag(
     let default_prefix = versioning_model.tag_prefix.clone();
 
     if choices.set_version.is_none() {
-        let proposed = next_version(&git, versioning_model, commit_model)?;
+        let proposed = next_version(&git, versioning_model, commit_model, rev)?;
         let proposed_tag = proposed.format(&default_prefix);
         let taken = git
             .list_tags_sorted()
@@ -181,6 +183,8 @@ pub fn run(
 
     let versioning_model = VersioningModel::from_config(resolved_config);
     let commit_model = CommitModel::from_config(resolved_config);
+    // The tag goes on this branch's tip, and the version comes from its history.
+    let rev = branch.as_deref().unwrap_or("HEAD");
 
     let mut choices = Choices {
         set_version,
@@ -196,13 +200,13 @@ pub fn run(
     // Scripts, `--yes`, `--ci` and `--non-interactive` keep the flag-driven path.
     let guided = ctx.is_interactive() && !ctx.auto_yes();
     if guided {
-        ask_about_the_tag(ctx, &versioning_model, &commit_model, &mut choices)?;
+        ask_about_the_tag(ctx, &versioning_model, &commit_model, rev, &mut choices)?;
     }
 
     // Determine the version to tag
     let mut version = match choices.set_version.as_deref() {
         Some(explicit_version) => parse_version(explicit_version, &versioning_model.tag_prefix)?,
-        None => next_version(&git, &versioning_model, &commit_model)?,
+        None => next_version(&git, &versioning_model, &commit_model, rev)?,
     };
 
     // A suffix turns the version into a prerelease (`rc` -> `-rc.N`)
@@ -265,10 +269,10 @@ pub fn run(
     // Create tag (dry-run support)
     if !ctx.dry_run() {
         if sign {
-            git.create_signed_tag(&tag_name, &tag_message)
+            git.create_signed_tag_at(&tag_name, &tag_message, rev)
                 .map_err(|e| e.with_context("operation", "create signed tag"))?;
         } else {
-            git.create_tag(&tag_name, &tag_message)
+            git.create_tag_at(&tag_name, &tag_message, rev)
                 .map_err(|e| e.with_context("operation", "create tag"))?;
         }
 

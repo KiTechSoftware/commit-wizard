@@ -10,6 +10,7 @@ use crate::{
     engine::{
         ErrorCode, PromptTrait,
         constants::emoji::{ERROR, PREVIEW, SUCCESS},
+        models::policy::commit::ScopeRequirement,
     },
 };
 
@@ -92,6 +93,17 @@ pub fn run(
 
     // scope
     let scope: Option<String> = match scope {
+        Some(value) if policy.scope_requirement == ScopeRequirement::Disabled => {
+            return Err(ErrorCode::InvalidInput
+                .error()
+                .with_context("field", "scope")
+                .with_context("value", value)
+                .with_context(
+                    "reason",
+                    "scopes are disabled (commit.scopes.mode = disabled)",
+                ));
+        }
+        None if policy.scope_requirement == ScopeRequirement::Disabled => None,
         Some(value) => {
             if policy.restrict_scopes_to_defined && !policy.allows_scope(&value) {
                 return Err(ErrorCode::InvalidInput

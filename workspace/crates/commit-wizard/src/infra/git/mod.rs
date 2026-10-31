@@ -179,14 +179,19 @@ impl Git {
     }
 
     pub fn latest_tag(&self) -> Result<Option<String>, Error> {
+        self.latest_tag_from("HEAD")
+    }
+
+    /// The newest version tag reachable from `rev`.
+    pub fn latest_tag_from(&self, rev: &str) -> Result<Option<String>, Error> {
         let repo = self.repo()?;
         let tags = repo
             .tag_names(None)
             .map_err(|err| self.git2_error("tag_names", err))?;
 
-        // Only tags reachable from HEAD count, so tags from other branches
+        // Only tags reachable from `rev` count, so tags from other branches
         // never become the base of a version bump.
-        let Some(head) = repo.head().ok().and_then(|head| head.target()) else {
+        let Ok(head) = self.revparse_oid(&repo, rev) else {
             return Ok(None);
         };
 
@@ -574,10 +579,15 @@ impl Git {
     }
 
     pub fn create_tag(&self, name: &str, message: &str) -> Result<(), Error> {
+        self.create_tag_at(name, message, "HEAD")
+    }
+
+    /// Creates an annotated tag on `rev`.
+    pub fn create_tag_at(&self, name: &str, message: &str, rev: &str) -> Result<(), Error> {
         let repo = self.repo()?;
         let obj = repo
-            .revparse_single("HEAD")
-            .map_err(|err| self.git2_error("revparse_single HEAD", err))?;
+            .revparse_single(rev)
+            .map_err(|err| self.git2_error("revparse_single", err))?;
         let sig = repo
             .signature()
             .map_err(|err| self.git2_error("signature", err))?;
@@ -594,8 +604,13 @@ impl Git {
     }
 
     pub fn create_signed_tag(&self, name: &str, message: &str) -> Result<(), Error> {
+        self.create_signed_tag_at(name, message, "HEAD")
+    }
+
+    /// Creates a GPG-signed tag on `rev`.
+    pub fn create_signed_tag_at(&self, name: &str, message: &str, rev: &str) -> Result<(), Error> {
         let output = self
-            .run_dynamic(["tag", "-s", "-m", message, name])
+            .run_dynamic(["tag", "-s", "-m", message, name, rev])
             .ok_or_else(|| {
                 ErrorCode::ProcessFailure
                     .error()
