@@ -299,6 +299,13 @@ impl Repo {
         std::fs::write(dir.join("config.toml"), contents).unwrap();
     }
 
+    /// Write a global file (`config.yaml`, `rules.json`, ...) for this repo's isolated HOME.
+    pub fn write_global_file(&self, name: &str, contents: &str) {
+        let dir = self.home.path().join("cwizard");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(name), contents).unwrap();
+    }
+
     pub fn write(&self, name: &str, contents: &str) {
         std::fs::write(self.path().join(name), contents).unwrap();
     }

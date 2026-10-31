@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::engine::{
-    config::{ProjectConfig, RulesConfig, StandardConfig},
-    constants::{CONFIG_FILE_NAME, RULES_FILE_NAME, app_config_dir},
+    config::{ConfigFormat, ProjectConfig, RulesConfig, StandardConfig},
+    constants::{CONFIG_FILE_NAME, CONFIG_STEM, RULES_FILE_NAME, RULES_STEM, app_config_dir},
     error::{ErrorCode, Result},
 };
 
@@ -44,6 +44,9 @@ pub struct ConfigContext {
     pub hidden: bool,
     pub with_rules: bool,
     pub registry_options: RegistryOptions,
+    /// Format for files init chooses the name of (the global config and rules).
+    /// Project files are rendered in the format their path's extension implies.
+    pub file_format: ConfigFormat,
 }
 
 pub struct ConfigPayload {
@@ -55,7 +58,7 @@ pub struct ConfigPayload {
 pub struct InitOutput {
     /// The primary file path that was written (or would be written on dry-run).
     pub path: PathBuf,
-    /// TOML content that would be written; only populated when dry_run=true.
+    /// Content that would be written, in the target file's format; only populated when dry_run=true.
     pub dry_run_content: Option<String>,
 }
 
@@ -75,12 +78,7 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
             let config_path = &context.output_path;
 
             if context.dry_run {
-                let content = toml::to_string_pretty(&input).map_err(|err| {
-                    ErrorCode::SerializationFailure
-                        .error()
-                        .with_context("path", config_path.display().to_string())
-                        .with_context("error", err.to_string())
-                })?;
+                let content = ConfigFormat::from_path(config_path).render(&input)?;
                 return Ok(InitOutput {
                     path: config_path.clone(),
                     dry_run_content: Some(content),
@@ -101,23 +99,18 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
             };
 
             let root = app_config_dir()?;
-            let config_path = root.join(CONFIG_FILE_NAME);
+            let extension = context.file_format.extension();
+            let config_path = root.join(format!("{CONFIG_STEM}.{extension}"));
 
             let dry_run_content = if context.dry_run {
-                let content = toml::to_string_pretty(&input).map_err(|err| {
-                    ErrorCode::SerializationFailure
-                        .error()
-                        .with_context("path", config_path.display().to_string())
-                        .with_context("error", err.to_string())
-                })?;
-                Some(content)
+                Some(context.file_format.render(&input)?)
             } else {
                 save_standard(&config_path, &input, context.force, context.dry_run)?;
                 None
             };
 
             if context.with_rules {
-                let rules_path = root.join(RULES_FILE_NAME);
+                let rules_path = root.join(format!("{RULES_STEM}.{extension}"));
                 if !context.dry_run {
                     save_rules(&rules_path, &rules, context.force, context.dry_run)?;
                 }
@@ -133,7 +126,7 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
 }
 
 pub fn save_project(path: &Path, input: &ProjectConfig, force: bool, dry_run: bool) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
 pub fn save_standard(
@@ -142,19 +135,15 @@ pub fn save_standard(
     force: bool,
     dry_run: bool,
 ) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
 pub fn save_rules(path: &Path, input: &RulesConfig, force: bool, dry_run: bool) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
-fn save_toml<T: serde::Serialize>(
-    path: &Path,
-    input: &T,
-    force: bool,
-    dry_run: bool,
-) -> Result<()> {
+/// Write a document in the format its file extension implies.
+fn save_doc<T: serde::Serialize>(path: &Path, input: &T, force: bool, dry_run: bool) -> Result<()> {
     if path.exists() && !force {
         return Err(ErrorCode::ConfigInvalid
             .error()
@@ -162,12 +151,9 @@ fn save_toml<T: serde::Serialize>(
             .with_context("reason", "file already exists; use --force to overwrite"));
     }
 
-    let content = toml::to_string_pretty(input).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("path", path.display().to_string())
-            .with_context("error", err.to_string())
-    })?;
+    let content = ConfigFormat::from_path(path)
+        .render(input)
+        .map_err(|err| err.with_context("path", path.display().to_string()))?;
 
     if dry_run {
         return Ok(());

@@ -17,6 +17,7 @@ use crate::engine::{
         env::get_env_registry_params,
         resolver::{load_rules_config, load_standard_config},
     },
+    constants::{CONFIG_STEM, RULES_STEM, find_config_file},
     models::runtime::resolution::{AvailableConfig, resolve_available_config},
 };
 
@@ -523,8 +524,8 @@ fn get_resolved_commit(repo_path: &Path) -> Result<String, Error> {
 // ---------------------------------------------------------------------------
 
 fn read_registry_dir(dir: &Path, logger: &dyn LoggerTrait) -> Result<AvailableConfig, Error> {
-    let config_path = dir.join("config.toml");
-    let rules_path = dir.join("rules.toml");
+    let config_path = find_config_file(dir, CONFIG_STEM).unwrap_or_else(|| dir.join("config.toml"));
+    let rules_path = find_config_file(dir, RULES_STEM).unwrap_or_else(|| dir.join("rules.toml"));
 
     logger.debug(&format!(
         "[registry] config.toml: {:?}, exists={}",

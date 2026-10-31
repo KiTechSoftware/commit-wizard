@@ -28,11 +28,12 @@ impl RulesConfig {
         Some(current)
     }
     pub fn from_toml_str(input: &str) -> Result<Self> {
-        toml::from_str(input).map_err(|err| {
-            ErrorCode::ConfigInvalid
-                .error()
-                .with_context("error", err.to_string())
-        })
+        Self::from_str_as(super::ConfigFormat::Toml, input)
+    }
+
+    /// Parse a document written in the given format.
+    pub fn from_str_as(format: super::ConfigFormat, input: &str) -> Result<Self> {
+        format.parse(input)
     }
     pub fn resolve_ref(&self, reference: &str) -> Option<&Value> {
         let path = reference.strip_prefix("@rules.")?;

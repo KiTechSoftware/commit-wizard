@@ -8,7 +8,7 @@ use crate::engine::{
         registry::{RegistrySpec, load_registry, resolve_registry_spec},
         resolver::{resolve_global_configs, resolve_project_configs},
     },
-    constants::resolve_project_config_path,
+    constants::{competing_project_configs, resolve_project_config_path},
     models::policy::Policy,
 };
 
@@ -262,6 +262,18 @@ impl Runtime {
         if let Some(path) = resolve_project_config_path(&cwd, Some(&repo_root), in_git, None) {
             let msg = format!("Found config path: {:?}", path);
             logger.debug(&msg);
+            let ignored = competing_project_configs(&path);
+            if !ignored.is_empty() {
+                let names = ignored
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                logger.warn(&format!(
+                    "Several project config files found; using {} and ignoring {names}",
+                    path.display()
+                ));
+            }
             let (base_config, rules_config) = resolve_project_configs(&path, Some(logger));
             let msg = format!(
                 "Config loaded: base={}, rules={}",

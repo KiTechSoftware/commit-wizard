@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::engine::{
-    config::{ProjectConfig, StandardConfig},
-    constants::{CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME, paths::app_config_dir},
+    config::{ConfigFormat, ProjectConfig, StandardConfig},
+    constants::paths::{resolve_global_config_path, resolve_repo_config_path},
     error::{ErrorCode, Result},
 };
 
@@ -43,8 +43,8 @@ pub struct ConfigShowOutput {
 
 pub fn resolve_config_path(target: ConfigTarget, cwd: &Path) -> Result<PathBuf> {
     match target {
-        ConfigTarget::Project => Ok(cwd.join(PROJECT_CONFIG_FILE_NAME)),
-        ConfigTarget::Global => Ok(app_config_dir()?.join(CONFIG_FILE_NAME)),
+        ConfigTarget::Project => Ok(resolve_repo_config_path(cwd)),
+        ConfigTarget::Global => resolve_global_config_path(),
     }
 }
 
@@ -72,7 +72,7 @@ pub fn config_show(input: &ConfigShowInput<'_>) -> Result<ConfigShowOutput> {
 
     let content = match input.target {
         ConfigTarget::Project => {
-            let parsed = ProjectConfig::from_toml_str(&raw)?;
+            let parsed = ProjectConfig::from_str_as(ConfigFormat::from_path(&path), &raw)?;
             match input.format {
                 ConfigShowFormat::Human | ConfigShowFormat::Toml => raw,
                 ConfigShowFormat::Json => serde_json::to_string_pretty(&parsed).map_err(|err| {
@@ -83,7 +83,7 @@ pub fn config_show(input: &ConfigShowInput<'_>) -> Result<ConfigShowOutput> {
             }
         }
         ConfigTarget::Global => {
-            let parsed = StandardConfig::from_toml_str(&raw)?;
+            let parsed = StandardConfig::from_str_as(ConfigFormat::from_path(&path), &raw)?;
             match input.format {
                 ConfigShowFormat::Human | ConfigShowFormat::Toml => raw,
                 ConfigShowFormat::Json => serde_json::to_string_pretty(&parsed).map_err(|err| {

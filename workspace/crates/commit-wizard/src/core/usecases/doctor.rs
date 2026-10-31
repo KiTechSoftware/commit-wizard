@@ -4,9 +4,12 @@ use crate::{
     core::{Context, CoreResult},
     engine::{
         capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
+        config::ConfigFormat,
         config::resolver::{load_project_config, load_rules_config, load_standard_config},
         constants::{
+            competing_project_configs,
             emoji::{ERROR, INFO, SUCCESS, WARN},
+            find_config_file,
             paths::resolve_new_project_config_path,
             resolve_global_config_path, resolve_global_rules_path, resolve_project_config_path,
         },
@@ -124,12 +127,28 @@ pub fn run(ctx: &Context) -> CoreResult<()> {
         None => CheckResult::info("Project config", "not found — default policy will be used"),
     });
 
+    if let Some(chosen) = &repo_config_path {
+        let ignored = competing_project_configs(chosen);
+        if !ignored.is_empty() {
+            checks.push(CheckResult::warn(
+                "Project config files",
+                format!(
+                    "using {}; ignoring {}",
+                    chosen.display(),
+                    ignored
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            ));
+        }
+    }
+
     let repo_rules_path = repo_config_path
         .as_ref()
-        .map(|p| p.parent().unwrap_or(p).join(".cwizard.rules.toml"));
-    if let Some(ref path) = repo_rules_path
-        && path.exists()
-    {
+        .and_then(|p| find_config_file(p.parent().unwrap_or(p), ".cwizard.rules"));
+    if let Some(ref path) = repo_rules_path {
         checks.push(if load_rules_config(path).is_none() {
             CheckResult::error(
                 "Project rules",
@@ -401,6 +420,7 @@ pub fn fix(ctx: &Context) -> CoreResult<()> {
                 hidden: true,
                 with_rules: false,
                 registry_options: Default::default(),
+                file_format: ConfigFormat::from_path(&output_path),
             })?;
             let verb = if ctx.dry_run() {
                 "Would create"

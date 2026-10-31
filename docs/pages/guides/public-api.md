@@ -21,6 +21,45 @@ version = 1  # Optional; currently always 1
 
 ---
 
+## File formats
+
+Every config file can be written in TOML, YAML or JSON. The file extension picks the format, and all three describe exactly the same settings.
+
+| Config | File names (first match wins) |
+| --- | --- |
+| Project | `.cwizard.{toml,yaml,yml,json}`, then `cwizard.{toml,yaml,yml,json}` |
+| Global | `config.{toml,yaml,yml,json}` in the app config directory |
+| Global rules | `rules.{toml,yaml,yml,json}` in the app config directory |
+| Registry | `config.*` and `rules.*` in the registry (or section) directory |
+
+The same project settings in each format:
+
+```toml
+# .cwizard.toml
+[commit]
+subject_max_length = 72
+
+[commit.types.wip]
+description = "Work in progress"
+bump = "Patch"
+```
+
+```yaml
+# .cwizard.yaml
+commit:
+  subject_max_length: 72
+  types:
+    wip:
+      description: Work in progress
+      bump: Patch
+```
+
+```json
+{ "commit": { "subject_max_length": 72, "types": { "wip": { "description": "Work in progress", "bump": "Patch" } } } }
+```
+
+If a directory holds more than one project config (say `.cwizard.toml` and `.cwizard.yaml`), cw uses the first by the order above — TOML, then YAML, then JSON, and `.cwizard.*` before `cwizard.*` — and warns that the others are ignored. `cw doctor` reports it too. Keep one file per scope.
+
 ## `[commit]` — Commit message policy
 
 Controls commit type definitions, scope requirements, subject length, and breaking change handling.

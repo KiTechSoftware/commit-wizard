@@ -4,14 +4,17 @@ use crate::{
     core::{Context, CoreResult},
     engine::{
         capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
-        constants::{
-            PROJECT_CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME_HIDDEN, app_config_dir,
-            paths::resolve_new_project_config_path,
-        },
+        config::ConfigFormat,
+        constants::{app_config_dir, paths::resolve_new_project_config_path},
     },
 };
 
-pub fn init_project_config(ctx: &Context, hidden: bool, profile: String) -> CoreResult<()> {
+pub fn init_project_config(
+    ctx: &Context,
+    hidden: bool,
+    profile: String,
+    file_format: ConfigFormat,
+) -> CoreResult<()> {
     let ui = ctx.ui();
 
     let scope = if hidden { "hidden" } else { "visible" };
@@ -21,19 +24,23 @@ pub fn init_project_config(ctx: &Context, hidden: bool, profile: String) -> Core
         _ => ConfigSpec::Standard,
     };
 
-    let config_filename = if hidden {
-        PROJECT_CONFIG_FILE_NAME_HIDDEN
-    } else {
-        PROJECT_CONFIG_FILE_NAME
-    };
-
-    let config_path = resolve_new_project_config_path(
+    let explicit_path = ctx.explicit_config_path().map(|p| p.as_path());
+    let mut config_path = resolve_new_project_config_path(
         ctx.cwd(),
         Some(ctx.repo_root().as_path()),
         ctx.in_git_repo(),
-        ctx.explicit_config_path().map(|p| p.as_path()),
+        explicit_path,
         hidden,
     );
+    // An explicit path keeps its own extension (and so its format); otherwise the
+    // chosen file format decides it.
+    if explicit_path.is_none() {
+        config_path.set_extension(file_format.extension());
+    }
+    let config_filename = config_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
 
     let config_context = ConfigContext {
         option: ConfigOption::Project,
@@ -45,6 +52,7 @@ pub fn init_project_config(ctx: &Context, hidden: bool, profile: String) -> Core
         hidden,
         with_rules: false,
         registry_options: Default::default(),
+        file_format,
     };
 
     let start = Instant::now();
@@ -73,13 +81,22 @@ pub fn init_project_config(ctx: &Context, hidden: bool, profile: String) -> Core
     if ctx.dry_run()
         && let Some(rendered) = init_output.dry_run_content.clone()
     {
-        content = content.section("Rendered Config", rendered, "toml".to_string());
+        content = content.section(
+            "Rendered Config",
+            rendered,
+            ConfigFormat::from_path(&config_path).name().to_string(),
+        );
     }
 
     ui.print_with_meta(&content, Some(&meta), true)
 }
 
-pub fn init_config(ctx: &Context, global: bool, profile: String) -> CoreResult<()> {
+pub fn init_config(
+    ctx: &Context,
+    global: bool,
+    profile: String,
+    file_format: ConfigFormat,
+) -> CoreResult<()> {
     let ui = ctx.ui();
 
     let spec = match profile.as_str() {
@@ -108,6 +125,7 @@ pub fn init_config(ctx: &Context, global: bool, profile: String) -> CoreResult<(
         hidden: false,
         with_rules: false,
         registry_options: Default::default(),
+        file_format,
     };
 
     let start = Instant::now();
@@ -134,13 +152,18 @@ pub fn init_config(ctx: &Context, global: bool, profile: String) -> CoreResult<(
     if ctx.dry_run()
         && let Some(rendered) = init_output.dry_run_content.clone()
     {
-        content = content.section("Rendered Config", rendered, "toml".to_string());
+        content = content.section("Rendered Config", rendered, file_format.name().to_string());
     }
 
     ui.print_with_meta(&content, Some(&meta), true)
 }
 
-pub fn init_rules(ctx: &Context, global: bool, profile: String) -> CoreResult<()> {
+pub fn init_rules(
+    ctx: &Context,
+    global: bool,
+    profile: String,
+    file_format: ConfigFormat,
+) -> CoreResult<()> {
     let ui = ctx.ui();
 
     let spec = match profile.as_str() {
@@ -169,6 +192,7 @@ pub fn init_rules(ctx: &Context, global: bool, profile: String) -> CoreResult<()
         hidden: false,
         with_rules: true, // Include rules for this operation
         registry_options: Default::default(),
+        file_format,
     };
 
     let start = Instant::now();
@@ -195,7 +219,7 @@ pub fn init_rules(ctx: &Context, global: bool, profile: String) -> CoreResult<()
     if ctx.dry_run()
         && let Some(rendered) = init_output.dry_run_content.clone()
     {
-        content = content.section("Rendered Config", rendered, "toml".to_string());
+        content = content.section("Rendered Config", rendered, file_format.name().to_string());
     }
 
     ui.print_with_meta(&content, Some(&meta), true)
@@ -232,6 +256,7 @@ pub fn init_registry(
         hidden: false,
         with_rules,
         registry_options,
+        file_format: ConfigFormat::Toml,
     };
 
     let start = Instant::now();

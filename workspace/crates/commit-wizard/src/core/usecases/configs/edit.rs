@@ -7,7 +7,7 @@ use crate::{
             edit,
             show::{ConfigShowFormat, ConfigShowInput, ConfigTarget, config_show as show_config},
         },
-        constants::{PROJECT_CONFIG_FILE_NAME, app_config_dir, resolve_new_project_config_path},
+        constants::{resolve_global_config_path, resolve_new_project_config_path},
     },
 };
 
@@ -109,7 +109,7 @@ pub fn config_path(ctx: &Context, global: bool) -> CoreResult<()> {
     let scope = if global { "global" } else { "project" };
 
     let path = if global {
-        app_config_dir()?.join(PROJECT_CONFIG_FILE_NAME)
+        resolve_global_config_path()?
     } else {
         let project_config_path = ctx.project_config_path();
         ctx.project_config_path().unwrap_or_else(|| {

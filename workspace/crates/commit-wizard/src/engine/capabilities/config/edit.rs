@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use toml::Value;
 
 use crate::engine::{
-    config::{ProjectConfig, StandardConfig},
+    config::{ConfigFormat, ProjectConfig, StandardConfig},
     error::{ErrorCode, Result},
 };
 
@@ -70,7 +70,7 @@ pub fn config_get(input: &ConfigGetInput<'_>) -> Result<ConfigGetOutput> {
     }
 
     let raw = std::fs::read_to_string(&path)?;
-    let doc = parse_doc(input.target, &raw)?;
+    let doc = parse_doc(input.target, ConfigFormat::from_path(&path), &raw)?;
 
     let value = get_value(&doc, input.key).cloned().ok_or_else(|| {
         ErrorCode::ConfigInvalid
@@ -94,22 +94,19 @@ pub fn config_set(input: &ConfigSetInput<'_>) -> Result<ConfigSetOutput> {
     } else {
         resolve_config_path(input.target, input.cwd)?
     };
+    let format = ConfigFormat::from_path(&path);
     let raw = if path.exists() {
         std::fs::read_to_string(&path)?
     } else {
-        default_doc_toml(input.target)?
+        default_doc(input.target, format)?
     };
 
-    let mut doc = parse_doc(input.target, &raw)?;
+    let mut doc = parse_doc(input.target, format, &raw)?;
     let value = parse_value_for_key(input.key, input.value)?;
 
     set_value(&mut doc, input.key, value.clone())?;
     let validated = validate_doc(input.target, doc)?;
-    let rendered = toml::to_string_pretty(&validated).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("error", err.to_string())
-    })?;
+    let rendered = format.render(&validated)?;
 
     if !input.dry_run {
         if let Some(parent) = path.parent()
@@ -142,16 +139,13 @@ pub fn config_unset(input: &ConfigUnsetInput<'_>) -> Result<ConfigUnsetOutput> {
             .with_context("reason", "config file does not exist"));
     }
 
+    let format = ConfigFormat::from_path(&path);
     let raw = std::fs::read_to_string(&path)?;
-    let mut doc = parse_doc(input.target, &raw)?;
+    let mut doc = parse_doc(input.target, format, &raw)?;
     let removed = unset_value(&mut doc, input.key)?;
 
     let validated = validate_doc(input.target, doc)?;
-    let rendered = toml::to_string_pretty(&validated).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("error", err.to_string())
-    })?;
+    let rendered = format.render(&validated)?;
 
     if !input.dry_run {
         std::fs::write(&path, &rendered)?;
@@ -193,10 +187,10 @@ fn is_supported_key(key: &str) -> bool {
     )
 }
 
-fn parse_doc(target: ConfigTarget, raw: &str) -> Result<Value> {
+fn parse_doc(target: ConfigTarget, format: ConfigFormat, raw: &str) -> Result<Value> {
     match target {
         ConfigTarget::Project => {
-            let parsed = ProjectConfig::from_toml_str(raw)?;
+            let parsed = ProjectConfig::from_str_as(format, raw)?;
             toml::Value::try_from(parsed).map_err(|err| {
                 ErrorCode::SerializationFailure
                     .error()
@@ -204,7 +198,7 @@ fn parse_doc(target: ConfigTarget, raw: &str) -> Result<Value> {
             })
         }
         ConfigTarget::Global => {
-            let parsed = StandardConfig::from_toml_str(raw)?;
+            let parsed = StandardConfig::from_str_as(format, raw)?;
             toml::Value::try_from(parsed).map_err(|err| {
                 ErrorCode::SerializationFailure
                     .error()
@@ -243,24 +237,10 @@ fn validate_doc(target: ConfigTarget, value: Value) -> Result<Value> {
     }
 }
 
-fn default_doc_toml(target: ConfigTarget) -> Result<String> {
+fn default_doc(target: ConfigTarget, format: ConfigFormat) -> Result<String> {
     match target {
-        ConfigTarget::Project => {
-            let doc = ProjectConfig::minimal();
-            toml::to_string_pretty(&doc).map_err(|err| {
-                ErrorCode::SerializationFailure
-                    .error()
-                    .with_context("error", err.to_string())
-            })
-        }
-        ConfigTarget::Global => {
-            let doc = StandardConfig::minimal();
-            toml::to_string_pretty(&doc).map_err(|err| {
-                ErrorCode::SerializationFailure
-                    .error()
-                    .with_context("error", err.to_string())
-            })
-        }
+        ConfigTarget::Project => format.render(&ProjectConfig::minimal()),
+        ConfigTarget::Global => format.render(&StandardConfig::minimal()),
     }
 }
 

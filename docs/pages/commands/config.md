@@ -81,6 +81,10 @@ CLI flags > ENV vars > project config > registry config > global config > defaul
 | Global (Linux/macOS) | `~/.config/cwizard/config.toml` |
 | Global (Windows) | `%APPDATA%\cwizard\config.toml` |
 
+Every one of these can also be written as YAML (`.yaml` or `.yml`) or JSON (`.json`) — for example `.cwizard.yaml` or `~/.config/cwizard/config.json`. See [File formats](../guides/public-api.md#file-formats).
+
+`cw config path`, `show`, `get`, `set` and `unset` work on whichever format the file uses, and `set`/`unset` write the file back in that same format. Note that `set` and `unset` rewrite the whole file, so comments are not kept.
+
 Use `cw init config` or `cw init project` to create these files. See [`cw init`](./init.md).
 
 ## Global flags

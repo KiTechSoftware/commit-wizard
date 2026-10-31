@@ -82,6 +82,19 @@ cw init project
 | `--profile <PROFILE>` | `--minimal`, `--full` | Profile: `minimal`, `standard` (default), `full` |
 | `--set <KEY=VALUE>` | | Inline key-value overrides; may be repeated |
 
+### Choosing the file format
+
+Config files can be TOML, YAML or JSON. `cw init` writes TOML unless you ask otherwise:
+
+```sh
+cw init --file-format yaml                 # .cwizard.yaml
+cw init --file-format json                 # .cwizard.json
+cw init config --global --file-format yaml # ~/.config/cwizard/config.yaml
+cw init --config team.yaml                 # the extension picks the format
+```
+
+`--file-format` applies to the project and global files `init` creates; registries are always written as TOML. When `--config <PATH>` names a file, its extension decides the format instead. Generated YAML and JSON files carry the same settings as the TOML profile but no comments.
+
 ### Subcommand-specific flags
 
 **`project`:**
