@@ -103,6 +103,7 @@ inherit = true   # global config sits under this project's settings
 | `commit.breaking.require_header`, `commit.breaking.require_footer` | `true` / `false` |
 | `commit.ticket.required` | `true` / `false` |
 | `commit.ticket.pattern`, `commit.ticket.header_format` | text |
+| `commit.ticket.source` | `branch`, `prompt`, `branch_or_prompt`, `disabled` |
 | `check.require_conventional`, `check.commits.enabled` | `true` / `false` |
 | `check.commits.enforce_on` | `all_branches`, `protected_branches`, `none` |
 | `push.allow.protected`, `push.allow.force` | `true` / `false` |

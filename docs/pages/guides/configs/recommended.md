@@ -241,7 +241,7 @@ types = ["feat", "fix", "security"]
 [commit.ticket]
 required = true
 pattern = "PROJ-\\d+"
-# source and header_format are accepted but not applied by any command yet
+source = "branch_or_prompt"   # take it from the branch name, or ask
 
 [commit.breaking]
 require_header = true

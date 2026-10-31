@@ -297,54 +297,55 @@ warn = true         # Show warning if attempting
 
 ### `commit.ticket`
 
-Ticket reference requirements (e.g., Jira ticket, GitHub issue number).
+Ticket references on commits. `cw` assumes no ticketing system (Jira, GitHub issues, a tracker of your own): **`pattern` says what a ticket looks like**, and `cw` writes the ticket at the start of the subject, as in `feat: Ticket-012: add ticketing`.
 
-> **What is enforced today:** `cw check` (and the commit check that `cw push` runs) fails a commit that has no ticket when `required = true`. `cw commit` does not ask for, find or insert a ticket yet, so `source` and `header_format` are accepted and validated but not applied. Put the ticket in the message yourself.
+`cw commit` gets the ticket from `--ticket`, from the branch name, or by asking, depending on `source`; `cw check` (and the commit check that `cw push` runs) fails a commit with no ticket when `required = true`.
 
 #### `commit.ticket.required`
 
 **Type:** `bool`  
-**Default:** `false`
+**Default:** `false`  
+**Description:** A commit must carry a ticket. `cw commit` refuses to commit without one (naming `--ticket` when it cannot ask), and `cw check` rejects commits whose message does not match `pattern`. With no `source` set, a required ticket is asked for.
 
 #### `commit.ticket.pattern`
 
 **Type:** `string` (regex)  
 **Default:** none  
-**Description:** Regex pattern for valid ticket IDs. With `required = true`, the pattern must match somewhere in the commit message (header, body or footer). Without a pattern, `required = true` fails every commit, so set one.
+**Description:** What a valid ticket looks like. Used to check `--ticket` and prompted answers, to find the ticket in a branch name, and by `cw check`, where it must match somewhere in the commit message (header, body or footer). With a capture group, the group is the ticket found in a branch name; otherwise the whole match. Without a pattern any text is accepted as a ticket, no ticket can be found in a branch name, and `required = true` with `cw check` fails every commit, so set one.
 
 ```toml
 [commit.ticket]
 required = true
-pattern = "PROJ-\\d+"    # Matches: PROJ-123, PROJ-999
-pattern = "#\\d+"        # Matches: #123, #999
-pattern = "([A-Z]+-\\d+|#\\d+)"  # Multiple formats
+pattern = "PROJ-\\d+"           # Jira-style: PROJ-123
+pattern = "#\\d+"               # GitHub-style: #123
+pattern = "Ticket-\\d+"         # your own: Ticket-012
+pattern = "([A-Z]+-\\d+|#\\d+)"  # more than one format
 ```
 
 #### `commit.ticket.source`
 
 **Type:** enum (`"branch"`, `"prompt"`, `"branch_or_prompt"`, `"disabled"`)  
 **Default:** `"disabled"`  
-**Description:** Where ticket references should come from. Reserved: stored and validated, but no command reads it yet.
+**Description:** Where `cw commit` gets the ticket when `--ticket` is not given. `--ticket` always wins.
 
-```toml
-[commit.ticket]
-source = "branch"           # Extract from branch name: feature/PROJ-123/my-feature
-source = "prompt"           # Ask user
-source = "branch_or_prompt" # Try branch first, prompt if not found
-source = "disabled"         # Don't look for tickets
-```
+| Value | What `cw commit` does |
+| --- | --- |
+| `branch` | Takes the first match of `pattern` in the current branch name (`feature/PROJ-123-login` gives `PROJ-123`). No match: an error if `required`, otherwise no ticket. |
+| `prompt` | Asks for it (on a terminal). Leave empty for none unless `required`. Without a terminal: an error if `required`, otherwise no ticket. |
+| `branch_or_prompt` | Uses the branch if it matches, otherwise asks. |
+| `disabled` | Looks for nothing, unless `required` is on, in which case it asks. A ticket given with `--ticket` is still used. |
 
 #### `commit.ticket.header_format`
 
 **Type:** `string`  
-**Default:** `"[{ticket}] "`  
-**Description:** Format string for the ticket reference in the subject, with `{ticket}` as placeholder. Reserved: stored and validated, but no command applies it yet.
+**Default:** `"{ticket}: "`  
+**Description:** How the ticket is written in front of the summary. `{ticket}` stands for the ticket, and the format must contain it. The ticket comes after the type and scope, so the commit stays a valid Conventional Commit, and it counts towards `subject_max_length`. A summary that already contains the ticket is left alone.
 
 ```toml
 [commit.ticket]
-header_format = "[{ticket}] "     # [PROJ-123] my message
-header_format = "({ticket}) "     # (PROJ-123) my message
-header_format = "{ticket}: "      # PROJ-123: my message
+header_format = "{ticket}: "      # feat(api): PROJ-123: add parser   (default)
+header_format = "[{ticket}] "     # feat(api): [PROJ-123] add parser
+header_format = "({ticket}) "     # feat(api): (PROJ-123) add parser
 ```
 
 ---

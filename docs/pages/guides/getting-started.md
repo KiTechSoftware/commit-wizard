@@ -47,6 +47,7 @@ You'll be prompted for:
 
 - **Type** — `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`
 - **Scope** (optional) — `api`, `ui`, `db`, etc.
+- **Ticket** (only if your project uses tickets) — `PROJ-123`, `#42`, `Ticket-012`; see [Tickets](../commands/commit.md#tickets)
 - **Subject** — what you changed (max 72 chars)
 - **Body** (optional) — detailed explanation
 - **Breaking change** (optional) — mark as major version bump

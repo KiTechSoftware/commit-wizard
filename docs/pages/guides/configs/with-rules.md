@@ -208,7 +208,7 @@ types = ["docs"]
 required = true
 pattern = "PROJ-\\d+"
 source = "branch_or_prompt"
-header_format = "[{ticket}] "
+header_format = "{ticket}: "
 
 # Branch config (manually reference protected_branches)
 [branch]
