@@ -88,7 +88,7 @@ fn repo_overriding(registry_url: &str, local_overrides: &str) -> Repo {
 }
 
 fn file_url(dir: &Path) -> String {
-    format!("file://{}", dir.display())
+    common::file_url(dir)
 }
 
 #[test]

@@ -285,8 +285,8 @@ fn a_registry_may_use_yaml_config_files() {
     repo.write(
         ".cwizard.yaml",
         &format!(
-            "registry:\n  use: local\n  section: custom\nregistries:\n  local:\n    url: file://{}\n    ref: v0.1.0\n    sections: [custom]\n",
-            reg.path().display()
+            "registry:\n  use: local\n  section: custom\nregistries:\n  local:\n    url: {}\n    ref: v0.1.0\n    sections: [custom]\n",
+            common::file_url(reg.path())
         ),
     );
     repo.write("x.txt", "x");

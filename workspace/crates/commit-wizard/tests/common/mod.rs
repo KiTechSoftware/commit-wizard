@@ -119,6 +119,17 @@ impl Repo {
     }
 }
 
+/// A `file://` URL for a local directory, as git accepts it on every platform
+/// (`file:///tmp/x`, `file:///C:/Users/x`).
+pub fn file_url(dir: &Path) -> String {
+    let path = dir.display().to_string().replace('\\', "/");
+    if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
+    }
+}
+
 pub fn text(out: &Output) -> String {
     format!(
         "{}{}",

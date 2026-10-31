@@ -85,7 +85,10 @@ fn the_global_config_is_reported_by_its_file_not_its_folder() {
 
     assert!(out.status.success(), "{}", text(&out));
     let output = text(&out);
-    assert!(output.contains("cwizard/config.toml"), "{output}");
+    assert!(
+        output.contains(&format!("cwizard{}config.toml", std::path::MAIN_SEPARATOR)),
+        "{output}"
+    );
     assert!(global_dir(&repo).join("config.toml").exists());
 }
 
@@ -97,7 +100,11 @@ fn global_rules_are_written_alone_without_creating_a_config() {
     let out = repo.cw(&["init", "rules", "--global"]);
 
     assert!(out.status.success(), "{}", text(&out));
-    assert!(text(&out).contains("cwizard/rules.toml"), "{}", text(&out));
+    assert!(
+        text(&out).contains(&format!("cwizard{}rules.toml", std::path::MAIN_SEPARATOR)),
+        "{}",
+        text(&out)
+    );
     assert_eq!(files_in(&global_dir(&repo)), ["rules.toml"]);
 }
 

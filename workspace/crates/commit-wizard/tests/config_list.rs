@@ -117,8 +117,8 @@ fn registry_values_are_attributed_to_the_registry() {
     repo.write(
         ".cwizard.toml",
         &format!(
-            "[commit]\nsubject_max_length = 50\n[registry]\nuse = \"local\"\nsection = \"custom\"\n[registries.local]\nurl = \"file://{}\"\nref = \"v0.1.0\"\nsections = [\"custom\"]\n",
-            reg.path().display()
+            "[commit]\nsubject_max_length = 50\n[registry]\nuse = \"local\"\nsection = \"custom\"\n[registries.local]\nurl = \"{}\"\nref = \"v0.1.0\"\nsections = [\"custom\"]\n",
+            common::file_url(reg.path())
         ),
     );
 
