@@ -156,5 +156,16 @@ pub fn run(
     let plain = report.invalid_count.to_string();
     content = content.plain(plain);
 
-    ui.print_with_meta(&content, Some(&meta), all_valid)
+    ui.print_with_meta(&content, Some(&meta), all_valid)?;
+
+    // The report is printed either way; a failing history must also fail the
+    // command so `cw check` can gate a pull request.
+    if all_valid {
+        Ok(())
+    } else {
+        Err(ErrorCode::CommitInvalid
+            .error()
+            .with_context("invalid", report.invalid_count.to_string())
+            .with_context("checked", report.total.to_string()))
+    }
 }
