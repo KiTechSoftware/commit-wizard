@@ -14,6 +14,7 @@ cw config [OPTIONS] <SUBCOMMAND>
 | --- | --- |
 | `path` | Show the path of the config file that would be read/written |
 | `show` | Print the contents of the config file |
+| `edit` | Guided editor: the `cw init` questions asked about the existing config, starting from its current values |
 | `list [--effective] [PREFIX]` | List settings; `--effective` shows the resolved configuration and where each value came from |
 | `get <KEY>` | Get a specific value by dot-path key |
 | `set <KEY> <VALUE>` | Set a config value |
@@ -88,6 +89,26 @@ inherit = true   # global config sits under this project's settings
 `cw config list --effective` shows which layers applied and which were found but not applied.
 
 `cw config show` prints the raw contents of one config file. To see the resolved result, use `cw config list --effective`.
+
+## Editing with guidance
+
+`cw config set` needs the exact key and value. If you would rather be asked, run:
+
+```sh
+cw config edit        # the project config
+cw config -g edit     # the global config
+```
+
+It asks the same questions as [`cw init`](./init.md#guided-setup) — commit types, scopes, protected branches, where messages are checked, pushing to protected branches, and (behind "Customize more options?") subject length, emojis, breaking-change descriptions, ticket references, tag prefix and changelog file — but about the file you already have:
+
+- every question starts from the **current value**; the current choice is listed first and marked `(current)`, so pressing Enter keeps it;
+- commit types start with the file's own types selected, and the standard types it lacks are offered, so you can add one as well as remove one (an added type comes with the standard definition);
+- before anything is written it lists exactly what would change, such as `commit.scopes.mode: "optional" -> "required"` or `- commit.types.chore`, and asks `Save 2 changes to …?`;
+- if nothing changed, the file is not touched; answering no leaves it as it was; `--dry-run` shows the changes without saving.
+
+The file keeps its format (TOML, YAML or JSON), and settings the editor does not ask about are kept. Like `set` and `unset`, saving rewrites the file, so comments are not preserved.
+
+`config edit` is for a terminal. In scripts and CI, and with `--yes`, `--ci` or `--non-interactive`, it stops and points you at `config set`.
 
 ## Seeing the effective configuration
 

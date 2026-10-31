@@ -101,6 +101,112 @@ pub fn effective_rows(
         .collect()
 }
 
+/// One line of a before/after comparison.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Change {
+    /// A setting, or a whole table (`commit.types.chore`) that appeared or vanished.
+    pub key: String,
+    pub before: Option<String>,
+    pub after: Option<String>,
+}
+
+impl Change {
+    pub fn describe(&self) -> String {
+        match (&self.before, &self.after) {
+            (Some(before), Some(after)) => format!("{}: {before} -> {after}", self.key),
+            (None, Some(after)) if after.is_empty() => format!("+ {}", self.key),
+            (None, Some(after)) => format!("+ {} = {after}", self.key),
+            (Some(_), None) => format!("- {}", self.key),
+            (None, None) => self.key.clone(),
+        }
+    }
+}
+
+/// What differs between two documents. A table that was added or removed as a
+/// whole (a commit type, say) is one line, not one per setting inside it.
+pub fn changes(before: &Value, after: &Value) -> Vec<Change> {
+    let old = flatten(before);
+    let new = flatten(after);
+    let mut out: Vec<Change> = Vec::new();
+
+    for (key, value) in &old {
+        match new.get(key) {
+            Some(now) if now != value => out.push(Change {
+                key: key.clone(),
+                before: Some(value.clone()),
+                after: Some(now.clone()),
+            }),
+            None => out.push(Change {
+                key: key.clone(),
+                before: Some(value.clone()),
+                after: None,
+            }),
+            _ => {}
+        }
+    }
+    for (key, value) in &new {
+        if !old.contains_key(key) {
+            out.push(Change {
+                key: key.clone(),
+                before: None,
+                after: Some(value.clone()),
+            });
+        }
+    }
+
+    collapse_tables(&mut out, &old, &new);
+    out.sort_by(|a, b| a.key.cmp(&b.key));
+    out
+}
+
+/// Replace a group of removals (or additions) that empties (or creates) a whole
+/// table with a single line naming the table.
+fn collapse_tables(
+    changes: &mut Vec<Change>,
+    old: &BTreeMap<String, String>,
+    new: &BTreeMap<String, String>,
+) {
+    for removing in [true, false] {
+        let (source, other) = if removing { (old, new) } else { (new, old) };
+        let parent_of = |key: &str| key.rsplit_once('.').map(|(parent, _)| parent.to_string());
+
+        let candidates: Vec<String> = changes
+            .iter()
+            .filter(|c| {
+                if removing {
+                    c.after.is_none()
+                } else {
+                    c.before.is_none()
+                }
+            })
+            .filter_map(|c| parent_of(&c.key))
+            .collect();
+
+        let mut candidates = candidates;
+        candidates.sort();
+        candidates.dedup();
+
+        for parent in candidates {
+            let prefix = format!("{parent}.");
+            if !changes.iter().any(|c| c.key.starts_with(&prefix)) {
+                continue; // already collapsed into a larger table
+            }
+            let leaves = |map: &BTreeMap<String, String>| {
+                map.keys().filter(|k| k.starts_with(&prefix)).count()
+            };
+            // Every leaf of that table is on one side only, and it has several.
+            if leaves(source) > 1 && leaves(other) == 0 {
+                changes.retain(|c| !c.key.starts_with(&prefix));
+                changes.push(Change {
+                    key: parent,
+                    before: removing.then(String::new),
+                    after: (!removing).then(String::new),
+                });
+            }
+        }
+    }
+}
+
 /// Settings of a single document, in key order.
 pub fn document_rows(document: &Value, prefix: Option<&str>) -> Vec<(String, String)> {
     filter_prefix(flatten(document), prefix)
@@ -189,5 +295,49 @@ mod tests {
         let rows = effective_rows(&doc("[b]\nx = 1\n[a]\ny = 2\n"), &[], None);
         let keys: Vec<&str> = rows.iter().map(|r| r.key.as_str()).collect();
         assert_eq!(keys, ["a.y", "b.x"]);
+    }
+
+    #[test]
+    fn changed_added_and_removed_settings_are_reported() {
+        let before = doc("[commit]\nsubject_max_length = 72\nuse_emojis = false\n");
+        let after = doc("[commit]\nsubject_max_length = 50\n[branch]\nremote = \"up\"\n");
+
+        let found = changes(&before, &after);
+        let lines: Vec<String> = found.iter().map(Change::describe).collect();
+
+        assert_eq!(
+            lines,
+            [
+                "+ branch.remote = \"up\"",
+                "commit.subject_max_length: 72 -> 50",
+                "- commit.use_emojis",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_whole_table_added_or_removed_is_one_line() {
+        let with = doc(
+            "[commit.types.chore]\ndescription = \"x\"\nbump = \"Patch\"\nsection = \"S\"\n[commit.types.feat]\nbump = \"Minor\"\n",
+        );
+        let without = doc("[commit.types.feat]\nbump = \"Minor\"\n");
+
+        let removed = changes(&with, &without);
+        let added = changes(&without, &with);
+
+        assert_eq!(
+            removed.iter().map(Change::describe).collect::<Vec<_>>(),
+            ["- commit.types.chore"]
+        );
+        assert_eq!(
+            added.iter().map(Change::describe).collect::<Vec<_>>(),
+            ["+ commit.types.chore"]
+        );
+    }
+
+    #[test]
+    fn identical_documents_have_no_changes() {
+        let a = doc("[commit]\nsubject_max_length = 72\n");
+        assert!(changes(&a, &a).is_empty());
     }
 }

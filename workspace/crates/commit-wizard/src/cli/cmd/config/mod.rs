@@ -42,6 +42,9 @@ pub enum ConfigSubcommand {
         /// Config key to unset
         key: String,
     },
+    /// Walk through the settings one by one, starting from the current values
+    /// (a guided editor for a terminal; use `set` in scripts)
+    Edit,
     /// List settings: those in the config file, or with --effective the
     /// resolved configuration and where each value came from
     List {
@@ -58,6 +61,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
     let global = args.global;
     match args.subcommand {
         ConfigSubcommand::Path => configs::config_path(ctx, global),
+        ConfigSubcommand::Edit => configs::wizard::edit_config(ctx, global),
         ConfigSubcommand::List { effective, prefix } => {
             configs::config_list(ctx, global, effective, prefix)
         }

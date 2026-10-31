@@ -19,7 +19,9 @@ pub const MANDATORY_TYPES: &[&str] = &["feat", "fix"];
 /// What the wizard learned. A field left `None` keeps the profile's value.
 #[derive(Debug, Clone, Default)]
 pub struct WizardAnswers {
-    /// Commit types to keep; the others are removed from the profile.
+    /// The commit types the config should end up with (plus `feat` and `fix`).
+    /// Types not listed are removed; listed types the config lacks are added
+    /// from the standard profile.
     pub keep_types: Option<Vec<String>>,
     pub scope_mode: Option<ScopeMode>,
     pub protected_branches: Option<Vec<String>>,
@@ -48,6 +50,18 @@ impl WizardAnswers {
                 let name: &str = name;
                 keep.iter().any(|kept| kept == name) || MANDATORY_TYPES.contains(&name)
             });
+            // A type the config does not have yet comes with the standard profile's definition.
+            let standard = Value::try_from(BaseConfig::standard()).map_err(serialization_error)?;
+            for name in keep {
+                if !types.contains_key(name)
+                    && let Some(definition) = standard
+                        .get("commit")
+                        .and_then(|commit| commit.get("types"))
+                        .and_then(|types| types.get(name))
+                {
+                    types.insert(name.clone(), definition.clone());
+                }
+            }
         }
 
         if let Some(mode) = self.scope_mode {
@@ -268,5 +282,33 @@ mod tests {
             ["main", "master", "release/*"]
         );
         assert!(split_list("  ,  ").is_empty());
+    }
+
+    #[test]
+    fn listed_types_the_config_lacks_are_added_from_the_standard_profile() {
+        // Start from a config that only has feat and fix.
+        let small = WizardAnswers {
+            keep_types: Some(vec![]),
+            ..Default::default()
+        }
+        .apply(&standard())
+        .unwrap();
+        assert_eq!(profile_types(&small), ["feat", "fix"]);
+
+        let grown = WizardAnswers {
+            keep_types: Some(vec![
+                "docs".to_string(),
+                "perf".to_string(),
+                "invented".to_string(),
+            ]),
+            ..Default::default()
+        }
+        .apply(&small)
+        .unwrap();
+
+        // docs and perf arrive with their definitions; a type nobody defines is ignored.
+        assert_eq!(profile_types(&grown), ["docs", "feat", "fix", "perf"]);
+        let docs = &grown.commit.as_ref().unwrap().types.as_ref().unwrap()["docs"];
+        assert!(docs.description.is_some());
     }
 }

@@ -134,39 +134,100 @@ pub fn guide(
 
     // --- how the project works ----------------------------------------------
     let preset = profile_config(&profile);
-    let mut answers = WizardAnswers::default();
-
-    let available: Vec<String> = profile_types(&preset)
+    let types: Vec<(String, bool)> = profile_types(&preset)
         .into_iter()
         .filter(|name| !MANDATORY_TYPES.contains(&name.as_str()))
+        .map(|name| (name, true))
         .collect();
-    if !available.is_empty() {
+    let answers = ask_settings(ctx, &preset, types, false)?;
+
+    // --- last word -------------------------------------------------------------
+    if !ui.confirm(&format!("Create {}?", path.display()), true)? {
+        ui.logger().warn("Nothing was written");
+        return Ok(None);
+    }
+
+    Ok(Some(InitPlan {
+        profile,
+        file_format,
+        answers,
+        overwrite,
+    }))
+}
+
+/// Put the option matching `current` first so it is what Enter picks, and
+/// mark it when editing.
+fn current_first(
+    options: Vec<(&'static str, &'static str, &'static str)>,
+    current: &str,
+    mark_current: bool,
+) -> Vec<SelectOption> {
+    let mut options = options;
+    if let Some(position) = options.iter().position(|(id, _, _)| *id == current) {
+        let chosen = options.remove(position);
+        options.insert(0, chosen);
+    }
+    options
+        .into_iter()
+        .map(|(id, label, description)| {
+            let label = if mark_current && id == current {
+                format!("{label} (current)")
+            } else {
+                label.to_string()
+            };
+            SelectOption::new(id, label).description(description.to_string())
+        })
+        .collect()
+}
+
+/// The questions about how the project works, with `current` supplying the
+/// default of each. `types` are the optional commit types and whether each is
+/// selected. Used by both `init` (the profile is `current`) and `config edit`
+/// (the existing file is).
+fn ask_settings(
+    ctx: &Context,
+    current: &BaseConfig,
+    types: Vec<(String, bool)>,
+    editing: bool,
+) -> CoreResult<WizardAnswers> {
+    let ui = ctx.ui();
+    let mut answers = WizardAnswers::default();
+
+    if !types.is_empty() {
         let chosen = ui
             .multiselect(&MultiSelectRequest::new(
                 format!(
                     "Which commit types will you use? ({} are always included)",
                     MANDATORY_TYPES.join(" and ")
                 ),
-                available
+                types
                     .iter()
-                    .map(|name| MultiSelectOption::new(name.clone(), name.clone()).selected(true))
+                    .map(|(name, selected)| {
+                        MultiSelectOption::new(name.clone(), name.clone()).selected(*selected)
+                    })
                     .collect(),
             ))
             .map_err(invalid("commit_types"))?;
         answers.keep_types = Some(chosen);
     }
 
+    let current_scope = match current.commit_scopes_mode() {
+        ScopeMode::Required => "required",
+        ScopeMode::Disabled => "disabled",
+        ScopeMode::Optional => "optional",
+    };
     let scope_choice = ui
         .select(&SelectRequest::new(
             "How should commit scopes work?".to_string(),
-            vec![
-                SelectOption::new("optional", "Optional")
-                    .description("feat(api): ... or feat: ...".to_string()),
-                SelectOption::new("required", "Required")
-                    .description("Every commit must name a scope".to_string()),
-                SelectOption::new("disabled", "Not used")
-                    .description("Scopes are not allowed".to_string()),
-            ],
+            current_first(
+                vec![
+                    ("optional", "Optional", "feat(api): ... or feat: ..."),
+                    ("required", "Required", "Every commit must name a scope"),
+                    ("disabled", "Not used", "Scopes are not allowed"),
+                ],
+                current_scope,
+                editing,
+            ),
         ))
         .map_err(invalid("scopes"))?;
     answers.scope_mode = Some(match scope_choice.as_str() {
@@ -176,7 +237,7 @@ pub fn guide(
     });
 
     let default_branches = {
-        let found = preset.branch_protected_patterns();
+        let found = current.branch_protected_patterns();
         if found.is_empty() {
             vec!["main".to_string(), "master".to_string()]
         } else {
@@ -193,17 +254,27 @@ pub fn guide(
         answers.protected_branches = Some(branches);
     }
 
+    let current_enforce = match current.check_commits_enforce_on() {
+        CommitEnforcementScope::AllBranches => "all_branches",
+        CommitEnforcementScope::None => "none",
+        CommitEnforcementScope::ProtectedBranches => "protected_branches",
+    };
     let enforce = ui
         .select(&SelectRequest::new(
             "Where should commit messages be checked?".to_string(),
-            vec![
-                SelectOption::new("protected_branches", "Protected branches only")
-                    .description("Recommended: feature branches stay relaxed".to_string()),
-                SelectOption::new("all_branches", "Every branch")
-                    .description("Strict everywhere".to_string()),
-                SelectOption::new("none", "Nowhere")
-                    .description("Never block a push over message style".to_string()),
-            ],
+            current_first(
+                vec![
+                    (
+                        "protected_branches",
+                        "Protected branches only",
+                        "Recommended: feature branches stay relaxed",
+                    ),
+                    ("all_branches", "Every branch", "Strict everywhere"),
+                    ("none", "Nowhere", "Never block a push over message style"),
+                ],
+                current_enforce,
+                editing,
+            ),
         ))
         .map_err(invalid("enforce_on"))?;
     answers.enforce_on = Some(match enforce.as_str() {
@@ -214,14 +285,13 @@ pub fn guide(
 
     answers.allow_push_to_protected = Some(ui.confirm(
         "Allow pushing straight to a protected branch?",
-        preset.push_allow_protected(),
+        current.push_allow_protected(),
     )?);
 
-    // --- more, for those who want it -----------------------------------------
     if ui.confirm("Customize more options?", false)? {
         let length = ui.text(
             "Maximum length of a commit subject",
-            Some(&preset.commit_subject_max_length().to_string()),
+            Some(&current.commit_subject_max_length().to_string()),
             None,
         )?;
         answers.subject_max_length = Some(length.trim().parse::<u32>().map_err(|_| {
@@ -233,35 +303,186 @@ pub fn guide(
         })?);
         answers.use_emojis = Some(ui.confirm(
             "Put an emoji before each commit type?",
-            preset.commit_use_emojis(),
+            current.commit_use_emojis(),
         )?);
         answers.require_breaking_footer = Some(ui.confirm(
             "Require a description for breaking changes?",
-            preset.commit_breaking_require_footer(),
+            current.commit_breaking_require_footer(),
         )?);
         answers.require_ticket = Some(ui.confirm(
             "Require a ticket reference in commits?",
-            preset.commit_ticket_required(),
+            current.commit_ticket_required(),
         )?);
         answers.tag_prefix = Some(ui.text(
             "Tag prefix",
-            Some(&preset.versioning_tag_prefix()),
+            Some(&current.versioning_tag_prefix()),
             Some("v gives v1.2.3"),
         )?);
         answers.changelog_output =
-            Some(ui.text("Changelog file", Some(&preset.changelog_output()), None)?);
+            Some(ui.text("Changelog file", Some(&current.changelog_output()), None)?);
     }
 
-    // --- last word -------------------------------------------------------------
-    if !ui.confirm(&format!("Create {}?", path.display()), true)? {
-        ui.logger().warn("Nothing was written");
-        return Ok(None);
+    Ok(answers)
+}
+
+/// `cw config edit`: the same questions as `cw init`, asked about an existing
+/// config, with its current values as the defaults. Shows what would change
+/// and saves only if the person agrees.
+pub fn edit_config(ctx: &Context, global: bool) -> CoreResult<()> {
+    use std::time::Instant;
+
+    use scriba::Table;
+
+    use crate::engine::{
+        capabilities::config::effective::{changes, to_document},
+        config::{ProjectConfig, StandardConfig},
+        constants::resolve_global_config_path,
+    };
+
+    let start = Instant::now();
+    let ui = ctx.ui();
+
+    if !(ctx.is_interactive() && !ctx.auto_yes()) {
+        return Err(ErrorCode::UserInteractionRequired
+            .error()
+            .with_context("command", "config edit")
+            .with_context(
+                "hint",
+                "config edit is a guided editor for a terminal; use `cw config set <key> <value>` in scripts",
+            ));
     }
 
-    Ok(Some(InitPlan {
-        profile,
-        file_format,
-        answers,
-        overwrite,
-    }))
+    let path = if global {
+        resolve_global_config_path()?
+    } else {
+        ctx.project_config_path().ok_or_else(|| {
+            ErrorCode::ConfigUnreadable.error().with_context(
+                "reason",
+                "no project config found; run `cw init` to create one",
+            )
+        })?
+    };
+    if !path.exists() {
+        return Err(ErrorCode::ConfigUnreadable
+            .error()
+            .with_context("path", path.display().to_string())
+            .with_context(
+                "reason",
+                "config file does not exist; run `cw init` to create one",
+            ));
+    }
+
+    let format = ConfigFormat::from_path(&path);
+    let raw = std::fs::read_to_string(&path)?;
+    enum Loaded {
+        Project(ProjectConfig),
+        Global(StandardConfig),
+    }
+    let loaded = if global {
+        Loaded::Global(StandardConfig::from_str_as(format, &raw)?)
+    } else {
+        Loaded::Project(ProjectConfig::from_str_as(format, &raw)?)
+    };
+    let current = match &loaded {
+        Loaded::Project(project) => project.inner.config.clone(),
+        Loaded::Global(standard) => standard.inner.clone(),
+    };
+
+    ui.logger().info(&format!("Editing {}", path.display()));
+
+    // Offer the standard profile's types too, so one can be added; the file's
+    // own types start selected. A file with no types table keeps using defaults.
+    let own = profile_types(&current);
+    let types: Vec<(String, bool)> = if own.is_empty() {
+        Vec::new()
+    } else {
+        let mut names = own.clone();
+        for name in profile_types(&BaseConfig::standard()) {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        names
+            .into_iter()
+            .filter(|name| !MANDATORY_TYPES.contains(&name.as_str()))
+            .map(|name| {
+                let selected = own.contains(&name);
+                (name, selected)
+            })
+            .collect()
+    };
+
+    let answers = ask_settings(ctx, &current, types, true)?;
+    let updated = answers.apply(&current)?;
+
+    let before = to_document(&current).ok_or_else(|| ErrorCode::SerializationFailure.error())?;
+    let after = to_document(&updated).ok_or_else(|| ErrorCode::SerializationFailure.error())?;
+    let differences = changes(&before, &after);
+
+    if differences.is_empty() {
+        ui.logger().info("Nothing changed");
+        return Ok(());
+    }
+    for change in &differences {
+        ui.logger().info(&format!("  {}", change.describe()));
+    }
+
+    let question = format!(
+        "Save {} change{} to {}?",
+        differences.len(),
+        if differences.len() == 1 { "" } else { "s" },
+        path.display()
+    );
+    if !ui.confirm(&question, true)? {
+        ui.logger().warn("Nothing was saved");
+        return Ok(());
+    }
+
+    if !ctx.dry_run() {
+        let rendered = match loaded {
+            Loaded::Project(mut project) => {
+                project.inner.config = updated;
+                format.render(&project)?
+            }
+            Loaded::Global(mut standard) => {
+                standard.inner = updated;
+                format.render(&standard)?
+            }
+        };
+        std::fs::write(&path, rendered)?;
+    }
+
+    let table = Table::new(
+        vec![
+            "setting".to_string(),
+            "before".to_string(),
+            "after".to_string(),
+        ],
+        differences
+            .iter()
+            .map(|c| {
+                vec![
+                    c.key.clone(),
+                    c.before.clone().unwrap_or_default(),
+                    c.after.clone().unwrap_or_default(),
+                ]
+            })
+            .collect(),
+    );
+    let meta = ui
+        .new_output_meta()
+        .with_command("config.edit".to_string())
+        .with_scope(if global { "global" } else { "project" }.to_string())
+        .with_dry_run(ctx.dry_run())
+        .with_duration_ms(start.elapsed().as_millis() as u64)
+        .with_timestamp(chrono::Utc::now().to_string());
+    let content = ui
+        .new_output_content()
+        .title("Config updated")
+        .data("path", path.display().to_string())
+        .data("changes", differences.len().to_string())
+        .data("saved", (!ctx.dry_run()).to_string())
+        .table(Some("Changes".to_string()), table);
+
+    ui.print_with_meta(&content, Some(&meta), true)
 }
