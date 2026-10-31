@@ -63,6 +63,9 @@ fn doctor_fix_outside_a_repo_changes_nothing() {
         .current_dir(dir.path())
         .env("HOME", home.path())
         .env("XDG_CONFIG_HOME", home.path())
+        .env("APPDATA", home.path())
+        .env("LOCALAPPDATA", home.path())
+        .env("USERPROFILE", home.path())
         .stdin(std::process::Stdio::null())
         .output()
         .unwrap();

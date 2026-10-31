@@ -215,7 +215,7 @@ jobs:
       - name: Test workspace
         # Windows support is new: report failures without blocking until they are understood.
         continue-on-error: true
-        run: cargo test --workspace --all-targets --locked
+        run: cargo test --workspace --all-targets --locked --no-fail-fast
 
   coverage:
     name: coverage

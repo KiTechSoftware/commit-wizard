@@ -14,6 +14,9 @@ fn rejects_long_subject(repo: &Repo, envs: &[(&str, &str)]) -> bool {
         .current_dir(repo.path())
         .env("HOME", repo.home_path())
         .env("XDG_CONFIG_HOME", repo.home_path())
+        .env("APPDATA", repo.home_path())
+        .env("LOCALAPPDATA", repo.home_path())
+        .env("USERPROFILE", repo.home_path())
         .stdin(std::process::Stdio::null());
     for (k, v) in envs {
         cmd.env(k, v);
