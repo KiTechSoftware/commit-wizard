@@ -20,6 +20,23 @@ impl Default for RulesConfig {
 }
 
 impl RulesConfig {
+    /// A rules file may hold the rules at the top level or inside a single `[rules]`
+    /// table, as a project config does; both give the same rules.
+    pub fn unwrapped(self) -> Self {
+        match self.0 {
+            Value::Table(mut table)
+                if table.len() == 1 && table.get("rules").is_some_and(Value::is_table) =>
+            {
+                Self(
+                    table
+                        .remove("rules")
+                        .unwrap_or(Value::Table(Default::default())),
+                )
+            }
+            other => Self(other),
+        }
+    }
+
     pub fn get(&self, path: &str) -> Option<&Value> {
         let mut current = &self.0;
 

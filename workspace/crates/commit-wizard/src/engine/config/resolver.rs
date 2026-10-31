@@ -125,7 +125,9 @@ pub fn load_rules_config(path: &std::path::Path) -> Option<RulesConfig> {
     }
 
     match std::fs::read_to_string(path) {
-        Ok(content) => RulesConfig::from_str_as(ConfigFormat::from_path(path), &content).ok(),
+        Ok(content) => RulesConfig::from_str_as(ConfigFormat::from_path(path), &content)
+            .ok()
+            .map(RulesConfig::unwrapped),
         Err(_) => None,
     }
 }

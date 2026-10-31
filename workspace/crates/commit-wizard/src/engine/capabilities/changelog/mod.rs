@@ -501,20 +501,49 @@ pub fn strftime_pattern(configured: Option<&str>) -> String {
         return format.to_string();
     }
 
-    let mut out = format.to_string();
-    for (go, strftime) in [
-        ("2006", "%Y"),
+    // Go layouts are made of reference tokens (`2006` is the year, `2` the day of the
+    // month, ...). Read them left to right, longest first, so `Jan 2, 2006` becomes
+    // `%b %-d, %Y` and the digits of one token are never taken for another.
+    const TOKENS: [(&str, &str); 24] = [
         ("January", "%B"),
-        ("Jan", "%b"),
         ("Monday", "%A"),
+        ("-07:00", "%:z"),
+        ("-0700", "%z"),
+        ("2006", "%Y"),
+        ("Jan", "%b"),
         ("Mon", "%a"),
+        ("MST", "%Z"),
         ("01", "%m"),
         ("02", "%d"),
-        ("15", "%H"),
+        ("03", "%I"),
         ("04", "%M"),
         ("05", "%S"),
-    ] {
-        out = out.replace(go, strftime);
+        ("06", "%y"),
+        ("15", "%H"),
+        ("PM", "%p"),
+        ("pm", "%P"),
+        ("1", "%-m"),
+        ("2", "%-d"),
+        ("3", "%-I"),
+        ("4", "%-M"),
+        ("5", "%-S"),
+        ("Z07:00", "%:z"),
+        ("Z0700", "%z"),
+    ];
+
+    let mut out = String::new();
+    let mut rest = format;
+    'scan: while !rest.is_empty() {
+        for (go, strftime) in TOKENS {
+            if let Some(after) = rest.strip_prefix(go) {
+                out.push_str(strftime);
+                rest = after;
+                continue 'scan;
+            }
+        }
+        let ch = rest.chars().next().unwrap_or_default();
+        out.push(ch);
+        rest = &rest[ch.len_utf8()..];
     }
     out
 }
@@ -959,5 +988,30 @@ mod tests {
         let text = render_markdown_release(&release, &ChangelogModel::default(), false);
         assert!(!text.contains("]("), "{text}");
         assert_eq!(release.url, None);
+    }
+
+    #[test]
+    fn go_layouts_become_strftime_patterns() {
+        for (go, expected) in [
+            ("2006-01-02", "%Y-%m-%d"),
+            ("Jan 2, 2006", "%b %-d, %Y"),
+            ("January 2, 2006", "%B %-d, %Y"),
+            ("02/01/06", "%d/%m/%y"),
+            ("Mon, 02 Jan 2006 15:04:05", "%a, %d %b %Y %H:%M:%S"),
+            ("3:04PM", "%-I:%M%p"),
+            ("%d/%m/%Y", "%d/%m/%Y"),
+        ] {
+            assert_eq!(strftime_pattern(Some(go)), expected, "{go}");
+        }
+        assert_eq!(strftime_pattern(None), "%Y-%m-%d");
+    }
+
+    #[test]
+    fn dates_use_the_go_layout_the_docs_show() {
+        // 2026-10-31 12:00:00 UTC
+        assert_eq!(
+            format_date(1_793_448_000, Some("Jan 2, 2006")).as_deref(),
+            Some("Oct 31, 2026")
+        );
     }
 }

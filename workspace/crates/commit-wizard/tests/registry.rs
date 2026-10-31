@@ -445,3 +445,26 @@ fn local_scopes_override_without_touching_registry_types() {
     assert!(scoped.status.success(), "{}", text(&scoped));
     assert_eq!(repo.subjects()[0], "wip(core): with scope");
 }
+
+#[test]
+fn rules_files_may_hold_rules_at_the_top_level_or_in_a_rules_table() {
+    for wrapped in [false, true] {
+        let repo = Repo::bare();
+        let rules = if wrapped {
+            "[rules]\nticket = \"PROJ-\\\\d+\"\n"
+        } else {
+            "ticket = \"PROJ-\\\\d+\"\n"
+        };
+        repo.write_global_file("rules.toml", rules);
+        repo.write(
+            ".cwizard.toml",
+            "version = 1\n[commit.ticket]\npattern = \"@rules.ticket\"\n",
+        );
+        let out = repo.cw(&["config", "list", "--effective", "commit.ticket"]);
+        assert!(
+            text(&out).contains("PROJ-"),
+            "wrapped={wrapped}: {}",
+            text(&out)
+        );
+    }
+}
