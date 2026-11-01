@@ -205,14 +205,6 @@ fn new_without_a_type_or_ticket_uses_just_the_description() {
 }
 
 #[test]
-fn new_can_be_named_after_the_ticket_alone() {
-    let repo = repo();
-    let out = repo.cw(&["branch", "new", "--type", "bugfix", "--ticket", "#42"]);
-    assert!(out.status.success(), "{}", text(&out));
-    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "bugfix/#42");
-}
-
-#[test]
 fn a_name_with_a_slash_is_used_as_it_is() {
     let repo = repo();
     let out = repo.cw(&["branch", "new", "team/Exact_Name"]);
@@ -255,40 +247,6 @@ fn new_refuses_an_existing_or_invalid_name() {
 }
 
 #[test]
-fn new_without_a_name_or_ticket_says_what_to_pass() {
-    let repo = repo();
-    let out = repo.cw(&["branch", "new"]);
-    assert!(!out.status.success());
-    assert!(text(&out).contains("--ticket"), "{}", text(&out));
-}
-
-#[test]
-fn new_checks_the_ticket_against_the_projects_pattern() {
-    let repo = repo();
-    repo.write(
-        ".cwizard.toml",
-        "version = 1\n[commit.ticket]\nrequired = true\npattern = \"[A-Z]+-[0-9]+\"\n",
-    );
-
-    let bad = repo.cw(&["branch", "new", "x", "--ticket", "nope"]);
-    assert!(!bad.status.success());
-    assert!(
-        text(&bad).contains("commit.ticket.pattern"),
-        "{}",
-        text(&bad)
-    );
-
-    let missing = repo.cw(&["branch", "new", "x"]);
-    assert!(!missing.status.success());
-    assert!(text(&missing).contains("--ticket"), "{}", text(&missing));
-
-    let ok = repo.cw(&[
-        "branch", "new", "x", "--ticket", "AB-1", "--type", "feature",
-    ]);
-    assert!(ok.status.success(), "{}", text(&ok));
-}
-
-#[test]
 fn a_branch_named_with_a_ticket_feeds_cw_commit() {
     let repo = repo();
     repo.write(
@@ -312,6 +270,126 @@ fn new_dry_run_creates_nothing() {
     let out = repo.cw(&["branch", "new", "x", "--type", "feature", "--dry-run"]);
     assert!(out.status.success(), "{}", text(&out));
     assert_eq!(local_branches(&repo), ["main"]);
+}
+
+#[test]
+fn the_description_is_always_required() {
+    let repo = repo();
+    let none = repo.cw(&["branch", "new", "--type", "feature", "--ticket", "PROJ-1"]);
+    assert!(!none.status.success());
+    assert!(text(&none).contains("--description"), "{}", text(&none));
+
+    let blank = repo.cw(&["branch", "new", "--description", "   "]);
+    assert!(!blank.status.success());
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "main");
+}
+
+#[test]
+fn type_and_ticket_are_optional_unless_the_config_requires_them() {
+    let repo = repo();
+    let out = repo.cw(&["branch", "new", "-d", "Plain"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "plain");
+}
+
+fn require(repo: &Repo, extra: &str) {
+    repo.write(
+        ".cwizard.toml",
+        &format!("version = 1\n[branch.naming]\n{extra}\n"),
+    );
+}
+
+#[test]
+fn a_required_type_must_be_given() {
+    let repo = repo();
+    require(&repo, "require_type = true");
+    let missing = repo.cw(&["branch", "new", "-d", "x"]);
+    assert!(!missing.status.success());
+    assert!(text(&missing).contains("--type"), "{}", text(&missing));
+
+    let ok = repo.cw(&["branch", "new", "-d", "x", "-t", "feature"]);
+    assert!(ok.status.success(), "{}", text(&ok));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "feature/x");
+}
+
+#[test]
+fn a_required_ticket_must_be_given_and_match_the_projects_pattern() {
+    let repo = repo();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[commit.ticket]\npattern = \"[A-Z]+-[0-9]+\"\n[branch.naming]\nrequire_ticket = true\n",
+    );
+    let missing = repo.cw(&["branch", "new", "-d", "x"]);
+    assert!(!missing.status.success());
+    assert!(text(&missing).contains("--ticket"), "{}", text(&missing));
+
+    let bad = repo.cw(&["branch", "new", "-d", "x", "-T", "nope"]);
+    assert!(!bad.status.success());
+    assert!(
+        text(&bad).contains("commit.ticket.pattern"),
+        "{}",
+        text(&bad)
+    );
+
+    let ok = repo.cw(&["branch", "new", "-d", "x", "-T", "AB-1"]);
+    assert!(ok.status.success(), "{}", text(&ok));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "AB-1-x");
+}
+
+#[test]
+fn both_can_be_required_together() {
+    let repo = repo();
+    require(&repo, "require_type = true\nrequire_ticket = true");
+    assert!(
+        !repo
+            .cw(&["branch", "new", "-d", "x", "-t", "fix"])
+            .status
+            .success()
+    );
+    assert!(
+        !repo
+            .cw(&["branch", "new", "-d", "x", "-T", "A-1"])
+            .status
+            .success()
+    );
+    let ok = repo.cw(&["branch", "new", "-d", "x", "-t", "fix", "-T", "A-1"]);
+    assert!(ok.status.success(), "{}", text(&ok));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "fix/A-1-x");
+}
+
+#[test]
+fn requiring_a_part_the_template_lacks_is_a_config_error() {
+    let repo = repo();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[branch.naming]\npattern = \"{slug}\"\nrequire_type = true\n",
+    );
+    let out = repo.cw(&["branch", "new", "-d", "x"]);
+    assert!(!out.status.success());
+    assert!(text(&out).contains("require_type"), "{}", text(&out));
+}
+
+#[test]
+fn the_requirements_can_be_set_with_cw_config() {
+    let repo = repo();
+    repo.write(".cwizard.toml", "version = 1\n");
+    assert!(
+        repo.cw(&["config", "set", "branch.naming.require_type", "true"])
+            .status
+            .success()
+    );
+    assert!(
+        repo.cw(&["config", "set", "branch.naming.require_ticket", "true"])
+            .status
+            .success()
+    );
+    assert!(
+        !repo
+            .cw(&["config", "set", "branch.naming.require_type", "maybe"])
+            .status
+            .success()
+    );
+    assert!(!repo.cw(&["branch", "new", "-d", "x"]).status.success());
 }
 
 fn with_pattern(repo: &Repo, pattern: &str) {

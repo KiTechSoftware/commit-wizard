@@ -212,6 +212,8 @@ fn build_branch() -> Option<BranchConfig> {
     let protected = get_list(ENV_BRANCH_PROTECTED);
     let naming = get_string(ENV_BRANCH_NAMING_PATTERN).map(|pattern| BranchNamingConfig {
         pattern: Some(pattern),
+        require_type: None,
+        require_ticket: None,
     });
     some_if_any!([remote, protected, naming] => BranchConfig { remote, protected, naming })
 }

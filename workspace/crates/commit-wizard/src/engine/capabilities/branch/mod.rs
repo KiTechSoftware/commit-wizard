@@ -136,13 +136,13 @@ impl NameTemplate {
             .filter(|t| !t.is_empty());
         let slug = Some(slugify(description)).filter(|s| !s.is_empty());
 
-        if ticket.is_none() && slug.is_none() {
+        if slug.is_none() {
             return Err(ErrorCode::InvalidInput
                 .error()
                 .with_context("field", "description")
                 .with_context(
                     "reason",
-                    "a branch needs a description or a ticket (pass --description or --ticket)",
+                    "a branch needs a description (pass --description)",
                 ));
         }
 
@@ -267,19 +267,23 @@ mod tests {
         assert_eq!(render(template, None, Some("#42"), "crash"), "#42-crash");
         assert_eq!(render(template, None, None, "crash"), "crash");
         assert_eq!(
-            render(template, Some("bugfix"), Some("#42"), ""),
-            "bugfix/#42"
+            render(template, Some("bugfix"), Some("Ticket 9"), "crash"),
+            "bugfix/Ticket-9-crash"
         );
-        assert_eq!(render(template, None, Some("Ticket 9"), ""), "Ticket-9");
     }
 
     #[test]
-    fn a_branch_needs_a_description_or_a_ticket() {
-        let template = NameTemplate::parse("{type}/{slug}").unwrap();
+    fn a_branch_always_needs_a_description() {
+        let template = NameTemplate::parse("{type}/{ticket}-{slug}").unwrap();
         assert!(template.render(Some("feature"), None, "  ").is_err());
         assert!(
             template
                 .render(Some("feature"), Some("PROJ-1"), "  ")
+                .is_err()
+        );
+        assert!(
+            template
+                .render(Some("feature"), Some("PROJ-1"), "x")
                 .is_ok()
         );
     }

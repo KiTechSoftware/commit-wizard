@@ -176,6 +176,12 @@ pub struct BranchNamingConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub pattern: Option<String>,
+    /// `cw branch new` must be given a type (`--type`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub require_type: Option<bool>,
+    /// `cw branch new` must be given a ticket (`--ticket`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub require_ticket: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

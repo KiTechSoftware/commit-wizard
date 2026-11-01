@@ -7,6 +7,8 @@ pub struct BranchModel {
     pub remote: String,
     pub protected_patterns: Vec<String>,
     pub naming_pattern: String,
+    pub require_type: bool,
+    pub require_ticket: bool,
     pub enforce_naming: bool,
     pub allowed_targets: Option<Vec<String>>,
 }
@@ -21,6 +23,8 @@ impl Default for BranchModel {
                 "release/*".to_string(),
             ],
             naming_pattern: crate::engine::constants::BRANCH_NAMING_PATTERN.to_string(),
+            require_type: false,
+            require_ticket: false,
             enforce_naming: false,
             allowed_targets: None,
         }
@@ -35,6 +39,8 @@ impl BranchModel {
             remote: base.branch_remote(),
             protected_patterns: base.branch_protected_patterns(),
             naming_pattern: base.branch_naming_pattern(),
+            require_type: base.branch_naming_require_type(),
+            require_ticket: base.branch_naming_require_ticket(),
             enforce_naming: base.branch_naming_enforce(),
             allowed_targets: if base.branch_allowed_targets().is_empty() {
                 None

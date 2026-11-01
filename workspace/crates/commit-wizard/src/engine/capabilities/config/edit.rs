@@ -209,6 +209,8 @@ fn is_supported_key(key: &str) -> bool {
             | "commit.ticket.source"
             | "branch.remote"
             | "branch.naming.pattern"
+            | "branch.naming.require_type"
+            | "branch.naming.require_ticket"
             | "release.enabled"
             | "release.source_branch"
             | "release.target_branch"
@@ -379,7 +381,9 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
         | "push.allow.protected"
         | "push.allow.force"
         | "push.check.commits"
-        | "push.check.branch_policy" => raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
+        | "push.check.branch_policy"
+        | "branch.naming.require_type"
+        | "branch.naming.require_ticket" => raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
             ErrorCode::ConfigInvalid
                 .error()
                 .with_context("key", key)

@@ -230,6 +230,8 @@ pub fn default_commit_config() -> CommitConfig {
 pub fn default_branch_naming_config() -> BranchNamingConfig {
     BranchNamingConfig {
         pattern: Some(BRANCH_NAMING_PATTERN.to_string()),
+        require_type: None,
+        require_ticket: None,
     }
 }
 

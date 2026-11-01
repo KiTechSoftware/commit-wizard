@@ -286,3 +286,30 @@ fn branch_new_only_asks_about_the_parts_the_template_has() {
     assert!(cw.finish());
     assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "plain-name");
 }
+
+#[test]
+fn branch_new_keeps_asking_for_what_the_config_requires() {
+    let repo = repo_with_branches();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[branch.naming]\nrequire_type = true\nrequire_ticket = true\n",
+    );
+    let mut cw = repo.cw_pty(&["branch", "new"]);
+    cw.expect("What kind of branch is it?");
+    cw.line("feature");
+    cw.expect("Ticket");
+    cw.line("");
+    cw.expect("A ticket is required");
+    cw.line("PROJ-4");
+    cw.expect("What are you working on?");
+    cw.line("");
+    cw.expect("A description is required");
+    cw.line("Add login");
+    cw.expect("Create branch feature/PROJ-4-add-login?");
+    cw.line("y");
+    assert!(cw.finish());
+    assert_eq!(
+        repo.git(&["branch", "--show-current"]).trim(),
+        "feature/PROJ-4-add-login"
+    );
+}

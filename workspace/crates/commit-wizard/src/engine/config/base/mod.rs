@@ -319,6 +319,24 @@ impl BaseConfig {
             .unwrap_or_else(|| defaults::BRANCH_NAMING_PATTERN.to_string())
     }
 
+    /// Whether `cw branch new` must be given a type.
+    pub fn branch_naming_require_type(&self) -> bool {
+        self.branch
+            .as_ref()
+            .and_then(|b| b.naming.as_ref())
+            .and_then(|n| n.require_type)
+            .unwrap_or(false)
+    }
+
+    /// Whether `cw branch new` must be given a ticket.
+    pub fn branch_naming_require_ticket(&self) -> bool {
+        self.branch
+            .as_ref()
+            .and_then(|b| b.naming.as_ref())
+            .and_then(|n| n.require_ticket)
+            .unwrap_or(false)
+    }
+
     pub fn branch_naming_enforce(&self) -> bool {
         defaults::BRANCH_NAMING_ENFORCE
     }
