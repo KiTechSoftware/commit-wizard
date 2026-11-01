@@ -74,7 +74,7 @@ cw commit --dry-run -t feat -m "my new feature"
 | `--breaking-message <MSG>` | `-d` | Breaking change description (goes in footer) |
 | `--body <BODY>` | `-b` | Commit message body (freeform, after a blank line) |
 | `--footer <FOOTER>` | `-f` | Footer token(s); may be repeated (e.g. `"Refs: #42"`) |
-| `--ticket <TICKET>` | | Ticket reference, written at the start of the subject; see [Tickets](#tickets) |
+| `--ticket <TICKET>` | `-T` | Ticket reference, written at the start of the subject; see [Tickets](#tickets) |
 | `--tracked` | `-a` | Stage changes to tracked files first, like `git commit -a` (new files are left out) |
 | `--all` | `-A` | Stage every change first, new files included. Cannot be combined with `-a` |
 | `--allow-empty` | | Allow committing with nothing staged |

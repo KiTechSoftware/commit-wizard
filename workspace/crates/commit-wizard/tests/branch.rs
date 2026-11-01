@@ -351,6 +351,23 @@ fn the_short_flags_work_too() {
 }
 
 #[test]
+fn dash_capital_t_is_the_short_form_of_ticket() {
+    let repo = repo();
+    let out = repo.cw(&[
+        "branch",
+        "new",
+        "-d",
+        "Add login",
+        "-t",
+        "feature",
+        "-T",
+        "PROJ-9",
+    ]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(current(&repo), "feature/PROJ-9-add-login");
+}
+
+#[test]
 fn the_description_flag_and_the_positional_shorthand_cannot_both_be_given() {
     let repo = repo();
     let out = repo.cw(&["branch", "new", "positional", "--description", "flag"]);

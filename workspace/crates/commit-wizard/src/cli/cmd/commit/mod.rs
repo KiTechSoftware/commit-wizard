@@ -35,7 +35,7 @@ pub struct Args {
     #[arg(long, short = 'f')]
     pub footer: Vec<String>,
     /// Ticket reference for the subject, such as `PROJ-123`, `#42` or `Ticket-012`
-    #[arg(long)]
+    #[arg(long, short = 'T')]
     pub ticket: Option<String>,
     /// Stage every change first, untracked files included (like `cw add -A`)
     #[arg(long = "all", short = 'A', conflicts_with = "tracked")]

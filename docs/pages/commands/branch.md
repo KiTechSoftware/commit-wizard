@@ -96,7 +96,7 @@ The branch is refused if the name is not a valid Git branch name or already exis
 | --- | --- | --- |
 | `--description <TEXT>` | `-d` | What the branch is for; becomes the `{slug}` part |
 | `--type <TYPE>` | `-t` | Kind of branch, used as the `{type}` part |
-| `--ticket <TICKET>` | | Ticket reference, used as the `{ticket}` part |
+| `--ticket <TICKET>` | `-T` | Ticket reference, used as the `{ticket}` part |
 | `--from <REF>` | | Commit, branch or tag to start from (default: the current commit) |
 | `--no-switch` | | Create the branch but stay on the current one |
 

@@ -265,3 +265,11 @@ fn add_dash_a_cannot_be_combined_with_paths_all_or_unstage() {
     assert!(!repo.cw(&["add", "-a", "--unstage"]).status.success());
     assert!(!repo.cw(&["add", "-a", "tracked.txt"]).status.success());
 }
+
+#[test]
+fn dash_capital_t_is_the_short_form_of_ticket() {
+    let repo = repo_with(JIRA_STYLE);
+    let out = repo.cw(&["commit", "-t", "fix", "-T", "PROJ-5", "-m", "short flags"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(repo.subjects()[0], "fix: PROJ-5: short flags");
+}

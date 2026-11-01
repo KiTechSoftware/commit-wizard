@@ -41,7 +41,7 @@ pub enum BranchSubcommand {
         #[arg(long = "type", short = 't')]
         kind: Option<String>,
         /// Ticket reference to put in the name, such as PROJ-123, #42 or Ticket-012
-        #[arg(long)]
+        #[arg(long, short = 'T')]
         ticket: Option<String>,
         /// Commit, branch or tag to start from (default: the current commit)
         #[arg(long)]
