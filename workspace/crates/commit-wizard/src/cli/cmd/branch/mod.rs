@@ -32,8 +32,11 @@ pub enum BranchSubcommand {
     },
     /// Create a branch named from a type, ticket and description, and switch to it
     New {
-        /// Short description ("add login page"), or a full branch name if it contains a /
+        /// The description, as a shorthand for --description; a full branch name if it contains a /
         name: Option<String>,
+        /// What the branch is for ("add login page"), turned into words joined by hyphens
+        #[arg(long, short = 'd', conflicts_with = "name")]
+        description: Option<String>,
         /// Kind of branch, used as the prefix (feature, bugfix, hotfix, ...)
         #[arg(long = "type", short = 't')]
         kind: Option<String>,
@@ -65,6 +68,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
         Some(BranchSubcommand::Switch { name }) => branch::switch::run(ctx, name),
         Some(BranchSubcommand::New {
             name,
+            description,
             kind,
             ticket,
             from,
@@ -73,6 +77,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
             ctx,
             branch::create::Options {
                 name,
+                description,
                 kind,
                 ticket,
                 from,

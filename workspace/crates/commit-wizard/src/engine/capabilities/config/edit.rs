@@ -208,6 +208,7 @@ fn is_supported_key(key: &str) -> bool {
             | "commit.ticket.header_format"
             | "commit.ticket.source"
             | "branch.remote"
+            | "branch.naming.pattern"
             | "release.enabled"
             | "release.source_branch"
             | "release.target_branch"
@@ -386,6 +387,7 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
                 .with_context("reason", "expected boolean")
         }),
         "branch.remote"
+        | "branch.naming.pattern"
         | "commit.ticket.pattern"
         | "commit.ticket.header_format"
         | "commit.ticket.source"

@@ -314,6 +314,116 @@ fn new_dry_run_creates_nothing() {
     assert_eq!(local_branches(&repo), ["main"]);
 }
 
+fn with_pattern(repo: &Repo, pattern: &str) {
+    repo.write(
+        ".cwizard.toml",
+        &format!("version = 1\n[branch.naming]\npattern = \"{pattern}\"\n"),
+    );
+}
+
+fn current(repo: &Repo) -> String {
+    repo.git(&["branch", "--show-current"]).trim().to_string()
+}
+
+#[test]
+fn the_description_has_its_own_flag() {
+    let repo = repo();
+    let out = repo.cw(&[
+        "branch",
+        "new",
+        "--description",
+        "Add login page",
+        "--type",
+        "feature",
+        "--ticket",
+        "PROJ-123",
+    ]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(current(&repo), "feature/PROJ-123-add-login-page");
+}
+
+#[test]
+fn the_short_flags_work_too() {
+    let repo = repo();
+    let out = repo.cw(&["branch", "new", "-d", "Add login", "-t", "bugfix"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(current(&repo), "bugfix/add-login");
+}
+
+#[test]
+fn the_description_flag_and_the_positional_shorthand_cannot_both_be_given() {
+    let repo = repo();
+    let out = repo.cw(&["branch", "new", "positional", "--description", "flag"]);
+    assert!(!out.status.success());
+    assert_eq!(current(&repo), "main");
+}
+
+#[test]
+fn the_template_chooses_the_shape_of_the_name() {
+    for (pattern, expected) in [
+        ("{slug}", "add-login"),
+        ("{type}/{slug}", "feature/add-login"),
+        ("{ticket}-{slug}", "PROJ-7-add-login"),
+        ("{type}/{ticket}-{slug}", "feature/PROJ-7-add-login"),
+        ("work/{ticket}_{slug}", "work/PROJ-7_add-login"),
+    ] {
+        let repo = repo();
+        with_pattern(&repo, pattern);
+        let mut args = vec!["branch", "new", "-d", "Add login"];
+        if pattern.contains("{type}") {
+            args.extend(["-t", "feature"]);
+        }
+        if pattern.contains("{ticket}") {
+            args.extend(["--ticket", "PROJ-7"]);
+        }
+        let out = repo.cw(&args);
+        assert!(out.status.success(), "{pattern}: {}", text(&out));
+        assert_eq!(current(&repo), expected, "{pattern}");
+    }
+}
+
+#[test]
+fn parts_the_template_has_but_the_flags_leave_out_are_dropped_with_their_separator() {
+    let repo = repo();
+    with_pattern(&repo, "{type}/{ticket}-{slug}");
+    let out = repo.cw(&["branch", "new", "-d", "Add login"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(current(&repo), "add-login");
+}
+
+#[test]
+fn a_flag_for_a_part_the_template_lacks_is_refused_rather_than_ignored() {
+    let repo = repo();
+    with_pattern(&repo, "{type}/{slug}");
+    let out = repo.cw(&["branch", "new", "-d", "x", "--ticket", "PROJ-1"]);
+    assert!(!out.status.success());
+    assert!(text(&out).contains("--ticket"), "{}", text(&out));
+    assert_eq!(current(&repo), "main");
+}
+
+#[test]
+fn a_template_that_is_not_one_says_what_it_should_look_like() {
+    let repo = repo();
+    with_pattern(&repo, "^(feature|bugfix)/.*$");
+    let out = repo.cw(&["branch", "new", "-d", "x"]);
+    assert!(!out.status.success());
+    assert!(
+        text(&out).contains("branch.naming.pattern"),
+        "{}",
+        text(&out)
+    );
+}
+
+#[test]
+fn the_template_can_be_set_with_cw_config() {
+    let repo = repo();
+    let set = repo.cw(&["config", "set", "branch.naming.pattern", "{type}/{slug}"]);
+    assert!(set.status.success(), "{}", text(&set));
+    let out = repo.cw(&["branch", "new", "-d", "Add login", "-t", "feature"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(current(&repo), "feature/add-login");
+}
+
 // --- prune --------------------------------------------------------------------
 
 #[test]

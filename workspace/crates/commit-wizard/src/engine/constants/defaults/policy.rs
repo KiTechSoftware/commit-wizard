@@ -46,7 +46,8 @@ pub const COMMIT_PROTECTED_WARN: bool = true;
 //
 
 pub const BRANCH_REMOTE: &str = "origin";
-pub const BRANCH_NAMING_PATTERN: &str = "feature/{issue}";
+/// A template for `cw branch new`; `{type}`, `{ticket}` and `{slug}` are the parts.
+pub const BRANCH_NAMING_PATTERN: &str = "{type}/{ticket}-{slug}";
 pub const BRANCH_NAMING_ENFORCE: bool = false;
 
 //

@@ -30,36 +30,138 @@ pub fn slugify(text: &str) -> String {
     cut.trim_end_matches('-').to_string()
 }
 
-/// `<kind>/<ticket>-<slug>`, leaving out the parts that are not given.
-///
-/// The ticket is kept as written (only whitespace becomes a hyphen), since it is
-/// the project's own identifier.
-pub fn branch_name(kind: Option<&str>, ticket: Option<&str>, description: &str) -> Result<String> {
-    let slug = slugify(description);
-    let ticket = ticket
-        .map(|t| t.split_whitespace().collect::<Vec<_>>().join("-"))
-        .filter(|t| !t.is_empty());
+/// The part of a branch name a `{token}` in the template stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NameToken {
+    Type,
+    Ticket,
+    Slug,
+}
 
-    let tail = match (&ticket, slug.is_empty()) {
-        (Some(ticket), false) => format!("{ticket}-{slug}"),
-        (Some(ticket), true) => ticket.clone(),
-        (None, false) => slug,
-        (None, true) => {
+impl NameToken {
+    fn parse(text: &str) -> Option<Self> {
+        match text {
+            "type" => Some(Self::Type),
+            "ticket" => Some(Self::Ticket),
+            "slug" => Some(Self::Slug),
+            _ => None,
+        }
+    }
+}
+
+/// One `{token}` and the literal text that follows it, up to the next token.
+/// The two travel together: a part that is left out takes its separator with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NameUnit {
+    pub token: NameToken,
+    pub separator: String,
+}
+
+/// A parsed `branch.naming.pattern`, such as `{type}/{ticket}-{slug}`.
+///
+/// The tokens are `{type}`, `{ticket}` and `{slug}` (the description as words joined by
+/// hyphens); `{slug}` is required. The usual shapes are `{slug}`, `{type}/{slug}`,
+/// `{ticket}-{slug}` and `{type}/{ticket}-{slug}`, and other separators work too.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NameTemplate {
+    /// Fixed text before the first token, such as `feature/` in `feature/{slug}`.
+    prefix: String,
+    units: Vec<NameUnit>,
+}
+
+impl NameTemplate {
+    pub fn parse(template: &str) -> Result<Self> {
+        let invalid = |reason: String| {
+            ErrorCode::ConfigInvalid
+                .error()
+                .with_context("key", "branch.naming.pattern")
+                .with_context("value", template)
+                .with_context("reason", reason)
+        };
+
+        let mut units: Vec<NameUnit> = Vec::new();
+        let mut rest = template;
+        let Some(first) = rest.find('{') else {
+            return Err(invalid(
+                "expected a template such as {type}/{ticket}-{slug}".to_string(),
+            ));
+        };
+        let prefix = rest[..first].to_string();
+        rest = &rest[first..];
+        while let Some(start) = rest.find('{') {
+            let after = &rest[start + 1..];
+            let Some(end) = after.find('}') else {
+                return Err(invalid("a { is never closed".to_string()));
+            };
+            let token = NameToken::parse(&after[..end]).ok_or_else(|| {
+                invalid(format!(
+                    "unknown {{{}}}; use {{type}}, {{ticket}} or {{slug}}",
+                    &after[..end]
+                ))
+            })?;
+            let tail = &after[end + 1..];
+            let (separator, next) = match tail.find('{') {
+                Some(next) => (&tail[..next], &tail[next..]),
+                None => (tail, ""),
+            };
+            units.push(NameUnit {
+                token,
+                separator: separator.to_string(),
+            });
+            rest = next;
+        }
+
+        if !units.iter().any(|unit| unit.token == NameToken::Slug) {
+            return Err(invalid("it must contain {slug}".to_string()));
+        }
+        Ok(Self { prefix, units })
+    }
+
+    pub fn has(&self, token: NameToken) -> bool {
+        self.units.iter().any(|unit| unit.token == token)
+    }
+
+    /// The branch name for the parts given. A part that is missing is left out together
+    /// with its separator, so `{type}/{ticket}-{slug}` gives `fix/login` with no ticket
+    /// and `PROJ-1-login` with no type.
+    pub fn render(
+        &self,
+        kind: Option<&str>,
+        ticket: Option<&str>,
+        description: &str,
+    ) -> Result<String> {
+        let kind = kind.map(slugify).filter(|k| !k.is_empty());
+        let ticket = ticket
+            .map(|t| t.split_whitespace().collect::<Vec<_>>().join("-"))
+            .filter(|t| !t.is_empty());
+        let slug = Some(slugify(description)).filter(|s| !s.is_empty());
+
+        if ticket.is_none() && slug.is_none() {
             return Err(ErrorCode::InvalidInput
                 .error()
-                .with_context("field", "name")
+                .with_context("field", "description")
                 .with_context(
                     "reason",
-                    "a branch needs a name or a ticket (pass NAME or --ticket)",
+                    "a branch needs a description or a ticket (pass --description or --ticket)",
                 ));
         }
-    };
 
-    let kind = kind.map(slugify).filter(|k| !k.is_empty());
-    Ok(match kind {
-        Some(kind) => format!("{kind}/{tail}"),
-        None => tail,
-    })
+        let mut name = self.prefix.clone();
+        for unit in &self.units {
+            let value = match unit.token {
+                NameToken::Type => kind.as_deref(),
+                NameToken::Ticket => ticket.as_deref(),
+                NameToken::Slug => slug.as_deref(),
+            };
+            if let Some(value) = value {
+                name.push_str(value);
+                name.push_str(&unit.separator);
+            }
+        }
+        // What follows the last part present is a dangling separator ("PROJ-1-").
+        let name = name.trim_end_matches(['-', '/', '_', '.']);
+        Ok(name.to_string())
+    }
 }
 
 /// How `cw branch list` words a branch's standing against its upstream.
@@ -139,22 +241,93 @@ mod tests {
         assert!(!slugify(&"word ".repeat(40)).ends_with('-'));
     }
 
+    fn render(template: &str, kind: Option<&str>, ticket: Option<&str>, text: &str) -> String {
+        NameTemplate::parse(template)
+            .unwrap()
+            .render(kind, ticket, text)
+            .unwrap()
+    }
+
     #[test]
-    fn names_combine_kind_ticket_and_description() {
+    fn the_four_usual_templates() {
+        let (k, t, d) = (Some("feature"), Some("PROJ-123"), "Add login");
+        assert_eq!(render("{slug}", k, t, d), "add-login");
+        assert_eq!(render("{type}/{slug}", k, t, d), "feature/add-login");
+        assert_eq!(render("{ticket}-{slug}", k, t, d), "PROJ-123-add-login");
         assert_eq!(
-            branch_name(Some("feature"), Some("PROJ-123"), "Add login").unwrap(),
+            render("{type}/{ticket}-{slug}", k, t, d),
             "feature/PROJ-123-add-login"
         );
+    }
+
+    #[test]
+    fn a_part_that_is_missing_takes_its_separator_with_it() {
+        let template = "{type}/{ticket}-{slug}";
+        assert_eq!(render(template, Some("fix"), None, "crash"), "fix/crash");
+        assert_eq!(render(template, None, Some("#42"), "crash"), "#42-crash");
+        assert_eq!(render(template, None, None, "crash"), "crash");
         assert_eq!(
-            branch_name(Some("fix"), Some("#42"), "crash").unwrap(),
-            "fix/#42-crash"
+            render(template, Some("bugfix"), Some("#42"), ""),
+            "bugfix/#42"
         );
-        assert_eq!(branch_name(None, None, "Add login").unwrap(), "add-login");
+        assert_eq!(render(template, None, Some("Ticket 9"), ""), "Ticket-9");
+    }
+
+    #[test]
+    fn a_branch_needs_a_description_or_a_ticket() {
+        let template = NameTemplate::parse("{type}/{slug}").unwrap();
+        assert!(template.render(Some("feature"), None, "  ").is_err());
+        assert!(
+            template
+                .render(Some("feature"), Some("PROJ-1"), "  ")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn fixed_text_before_the_first_part_is_kept() {
         assert_eq!(
-            branch_name(Some("hotfix"), Some("Ticket 9"), "").unwrap(),
-            "hotfix/Ticket-9"
+            render("feature/{ticket}-{slug}", None, Some("A-1"), "x y"),
+            "feature/A-1-x-y"
         );
-        assert!(branch_name(Some("feature"), None, "  ").is_err());
+        assert_eq!(
+            render("feature/{slug}", Some("fix"), None, "x"),
+            "feature/x"
+        );
+    }
+
+    #[test]
+    fn other_separators_work() {
+        assert_eq!(
+            render("{type}_{ticket}_{slug}", Some("fix"), Some("A-1"), "x y"),
+            "fix_A-1_x-y"
+        );
+    }
+
+    #[test]
+    fn bad_templates_say_what_is_wrong() {
+        for (template, expected) in [
+            ("feature/{issue}", "unknown {issue}"),
+            ("{type}/{ticket}", "{slug}"),
+            ("^(feature|bugfix)/.*$", "template"),
+            ("{slug", "never closed"),
+            ("{type}{ticket}", "{slug}"),
+        ] {
+            let err = NameTemplate::parse(template).unwrap_err();
+            let reason = err
+                .context
+                .iter()
+                .find(|(key, _)| key == "reason")
+                .map(|(_, value)| value.as_str())
+                .unwrap_or_default();
+            assert!(reason.contains(expected), "{template}: {reason}");
+        }
+    }
+
+    #[test]
+    fn the_template_knows_which_parts_it_uses() {
+        let template = NameTemplate::parse("{type}/{slug}").unwrap();
+        assert!(template.has(NameToken::Type) && !template.has(NameToken::Ticket));
     }
 
     #[test]

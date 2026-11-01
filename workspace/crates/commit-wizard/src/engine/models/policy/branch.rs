@@ -20,7 +20,7 @@ impl Default for BranchModel {
                 "master".to_string(),
                 "release/*".to_string(),
             ],
-            naming_pattern: "feature/{issue}".to_string(),
+            naming_pattern: crate::engine::constants::BRANCH_NAMING_PATTERN.to_string(),
             enforce_naming: false,
             allowed_targets: None,
         }

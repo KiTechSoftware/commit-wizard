@@ -1,4 +1,5 @@
-//! `cw branch new`: create a branch named from a type, a ticket and a description.
+//! `cw branch new`: create a branch named from a type, a ticket and a description,
+//! laid out as `branch.naming.pattern` says (`{type}/{ticket}-{slug}` by default).
 
 use std::time::Instant;
 
@@ -10,7 +11,7 @@ use crate::{
     engine::{
         ErrorCode, PromptTrait,
         capabilities::{
-            branch::{BRANCH_KINDS, branch_name},
+            branch::{BRANCH_KINDS, NameTemplate, NameToken},
             commit::ticket,
         },
         models::policy::enforcement::TicketSource,
@@ -20,9 +21,10 @@ use crate::{
 /// What was asked of `cw branch new`, from flags.
 #[derive(Debug, Clone, Default)]
 pub struct Options {
-    /// A short description (turned into words joined by hyphens), or a full branch
-    /// name when it contains a `/`.
+    /// The description as a shorthand, or a full branch name when it contains a `/`.
     pub name: Option<String>,
+    /// What the branch is for (`--description`); turned into words joined by hyphens.
+    pub description: Option<String>,
     pub kind: Option<String>,
     pub ticket: Option<String>,
     pub from: Option<String>,
@@ -50,10 +52,31 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
     let name = if literal {
         options.name.clone().unwrap_or_default().trim().to_string()
     } else {
+        let template = NameTemplate::parse(&ctx.policy().branch.naming_pattern)?;
+        let pattern_in_use = &ctx.policy().branch.naming_pattern;
+
+        // A flag for a part the template does not have would be silently dropped.
+        for (given, token, flag) in [
+            (options.kind.is_some(), NameToken::Type, "--type"),
+            (options.ticket.is_some(), NameToken::Ticket, "--ticket"),
+        ] {
+            if given && !template.has(token) {
+                return Err(ErrorCode::InvalidInput
+                    .error()
+                    .with_context("flag", flag)
+                    .with_context(
+                        "reason",
+                        format!(
+                            "branch.naming.pattern is {pattern_in_use}, which has no place for it"
+                        ),
+                    ));
+            }
+        }
+
         // type
         let kind = match options.kind.clone() {
             Some(kind) => Some(kind),
-            None if guided => {
+            None if guided && template.has(NameToken::Type) => {
                 let mut choices: Vec<SelectOption> = BRANCH_KINDS
                     .iter()
                     .map(|kind| SelectOption::new(kind.to_string(), kind.to_string()))
@@ -72,9 +95,9 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
         };
 
         // ticket
-        let ticket_matters =
-            policy.required || policy.source != TicketSource::Disabled || options.ticket.is_some();
         let pattern = policy.regex.as_deref();
+        let ticket_matters = template.has(NameToken::Ticket)
+            && (policy.required || policy.source != TicketSource::Disabled);
         let ticket = match options.ticket.clone() {
             Some(value) => {
                 let value = value.trim().to_string();
@@ -108,7 +131,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
                 ui.logger()
                     .warn("That does not match commit.ticket.pattern");
             },
-            None if policy.required => {
+            None if ticket_matters && policy.required => {
                 return Err(ErrorCode::InvalidInput
                     .error()
                     .with_context("field", "ticket")
@@ -121,8 +144,8 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
         };
 
         // description
-        let description = match options.name.clone() {
-            Some(name) => name,
+        let description = match options.description.clone().or(options.name.clone()) {
+            Some(text) => text,
             None if guided => {
                 let help = if ticket.is_some() {
                     "Leave empty to name the branch after the ticket"
@@ -134,7 +157,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
             None => String::new(),
         };
 
-        branch_name(kind.as_deref(), ticket.as_deref(), &description)?
+        template.render(kind.as_deref(), ticket.as_deref(), &description)?
     };
 
     if name.is_empty() || !git.is_valid_branch_name(&name) {
