@@ -273,15 +273,48 @@ fn new_dry_run_creates_nothing() {
 }
 
 #[test]
-fn the_description_is_always_required() {
+fn either_a_description_or_a_ticket_is_enough() {
     let repo = repo();
-    let none = repo.cw(&["branch", "new", "--type", "feature", "--ticket", "PROJ-1"]);
+    let ticket_only = repo.cw(&["branch", "new", "-t", "bugfix", "-T", "#42"]);
+    assert!(ticket_only.status.success(), "{}", text(&ticket_only));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "bugfix/#42");
+
+    repo.git(&["switch", "-q", "main"]);
+    let description_only = repo.cw(&["branch", "new", "-d", "Fix crash", "-t", "bugfix"]);
+    assert!(
+        description_only.status.success(),
+        "{}",
+        text(&description_only)
+    );
+    assert_eq!(
+        repo.git(&["branch", "--show-current"]).trim(),
+        "bugfix/fix-crash"
+    );
+}
+
+#[test]
+fn with_neither_a_description_nor_a_ticket_both_flags_are_named() {
+    let repo = repo();
+    let none = repo.cw(&["branch", "new", "--type", "feature"]);
     assert!(!none.status.success());
-    assert!(text(&none).contains("--description"), "{}", text(&none));
+    let output = text(&none);
+    assert!(
+        output.contains("--description") && output.contains("--ticket"),
+        "{output}"
+    );
 
     let blank = repo.cw(&["branch", "new", "--description", "   "]);
     assert!(!blank.status.success());
     assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "main");
+}
+
+#[test]
+fn a_required_ticket_alone_is_enough_to_name_the_branch() {
+    let repo = repo();
+    require(&repo, "require_ticket = true");
+    let out = repo.cw(&["branch", "new", "-T", "PROJ-8"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "PROJ-8");
 }
 
 #[test]

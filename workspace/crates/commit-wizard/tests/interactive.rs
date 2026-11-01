@@ -226,6 +226,8 @@ fn branch_new_asks_for_the_kind_and_the_description() {
     let mut cw = repo.cw_pty(&["branch", "new"]);
     cw.expect("What kind of branch is it?");
     cw.line("bugfix");
+    cw.expect("Ticket");
+    cw.line("");
     cw.expect("What are you working on?");
     cw.line("Fix the crash");
     cw.expect("Create branch bugfix/fix-the-crash?");
@@ -301,15 +303,32 @@ fn branch_new_keeps_asking_for_what_the_config_requires() {
     cw.line("");
     cw.expect("A ticket is required");
     cw.line("PROJ-4");
+    // With a ticket, the description may be left empty.
     cw.expect("What are you working on?");
     cw.line("");
-    cw.expect("A description is required");
-    cw.line("Add login");
-    cw.expect("Create branch feature/PROJ-4-add-login?");
+    cw.expect("Create branch feature/PROJ-4?");
     cw.line("y");
     assert!(cw.finish());
     assert_eq!(
         repo.git(&["branch", "--show-current"]).trim(),
-        "feature/PROJ-4-add-login"
+        "feature/PROJ-4"
     );
+}
+
+#[test]
+fn branch_new_insists_on_a_description_when_there_is_no_ticket() {
+    let repo = repo_with_branches();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[branch.naming]\npattern = \"{slug}\"\n",
+    );
+    let mut cw = repo.cw_pty(&["branch", "new"]);
+    cw.expect("What are you working on?");
+    cw.line("");
+    cw.expect("A description is required");
+    cw.line("Add login");
+    cw.expect("Create branch add-login?");
+    cw.line("y");
+    assert!(cw.finish());
+    assert_eq!(repo.git(&["branch", "--show-current"]).trim(), "add-login");
 }

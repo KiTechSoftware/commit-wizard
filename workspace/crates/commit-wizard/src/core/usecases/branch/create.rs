@@ -14,7 +14,6 @@ use crate::{
             branch::{BRANCH_KINDS, NameTemplate, NameToken},
             commit::ticket,
         },
-        models::policy::enforcement::TicketSource,
     },
 };
 
@@ -135,10 +134,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
 
         // ticket: optional unless the config requires it
         let pattern = policy.regex.as_deref();
-        let ask_for_ticket = template.has(NameToken::Ticket)
-            && (branch.require_ticket
-                || policy.required
-                || policy.source != TicketSource::Disabled);
+        let ask_for_ticket = template.has(NameToken::Ticket);
         let ticket = match options.ticket.clone() {
             Some(value) => {
                 let value = value.trim().to_string();
@@ -184,8 +180,9 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
             None => None,
         };
 
-        // description: always required
-        let description = match options.description.clone().or(options.name.clone()) {
+        // description: needed unless a ticket names the branch
+        let given_description = options.description.clone().or(options.name.clone());
+        let description = match given_description {
             Some(text) if !text.trim().is_empty() => text,
             Some(_) => {
                 return Err(ErrorCode::InvalidInput
@@ -194,21 +191,27 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
                     .with_context("reason", "the description cannot be empty"));
             }
             None if guided => loop {
-                let text = ui.text(
-                    "What are you working on?",
-                    None,
-                    Some("A few words, such as 'add login page'"),
-                )?;
-                if !text.trim().is_empty() {
+                let help = if ticket.is_some() {
+                    "Leave empty to name the branch after the ticket"
+                } else {
+                    "A few words, such as 'add login page'"
+                };
+                let text = ui.text("What are you working on?", None, Some(help))?;
+                if !text.trim().is_empty() || ticket.is_some() {
                     break text;
                 }
-                ui.logger().warn("A description is required");
+                ui.logger()
+                    .warn("A description is required without a ticket");
             },
+            None if ticket.is_some() => String::new(),
             None => {
                 return Err(ErrorCode::InvalidInput
                     .error()
                     .with_context("field", "description")
-                    .with_context("reason", "a branch needs a description; pass --description"));
+                    .with_context(
+                        "reason",
+                        "a branch needs a description or a ticket; pass --description or --ticket",
+                    ));
             }
         };
 
