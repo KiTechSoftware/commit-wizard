@@ -65,7 +65,15 @@ The name is built from a template, `branch.naming.pattern`, which defaults to `{
 | `{ticket}` | `--ticket`, kept as you write it | `PROJ-123-` |
 | `{slug}` | `--description` / `-d`: lower-case words joined by hyphens, cut to 50 characters | `add-login-page` |
 
-A part you do not give is left out together with its separator, so with no ticket the default gives `feature/add-login-page`, and with neither type nor ticket just `add-login-page`. At least a description or a ticket is needed.
+What is required:
+
+| Flag | Required? |
+| --- | --- |
+| `--description` / `-d` | **Always.** On a terminal you are asked until you give one; without a terminal the error names `--description`. |
+| `--type` / `-t` | Optional, unless `branch.naming.require_type = true` |
+| `--ticket` / `-T` | Optional, unless `branch.naming.require_ticket = true` |
+
+A part you do not give is left out together with its separator, so with no ticket the default gives `feature/add-login-page`, and with neither type nor ticket just `add-login-page`.
 
 Set the layout you want in the config; `{slug}` is required and other text is kept as written:
 
@@ -77,18 +85,29 @@ pattern = "{ticket}-{slug}"           # PROJ-123-add-login-page
 pattern = "{type}/{ticket}-{slug}"    # feature/PROJ-123-add-login-page  (default)
 ```
 
+To make branches in your project always carry a type, a ticket or both:
+
+```toml
+[branch.naming]
+pattern = "{type}/{ticket}-{slug}"
+require_type = true
+require_ticket = true
+```
+
+A required part is asked for on a terminal (and re-asked if left empty), and without a terminal the error names the flag to pass. Requiring a part the template has no place for, such as `require_type` with `{slug}`, is a configuration error.
+
 A flag for a part the template does not have, such as `--ticket` with `{type}/{slug}`, is refused rather than ignored. A template that is not one (an old regular expression, say) is an error that says so.
 
 ```sh
 cw branch new "Quick fix"                          # same as --description "Quick fix"
-cw branch new --type bugfix --ticket "#42"         # bugfix/#42
+cw branch new -d crash -t bugfix -T "#42"          # bugfix/#42-crash
 cw branch new team/exact-name                      # used as written (it contains a /)
 cw branch new -d "Try it" --from v1.2.0 --no-switch  # start from a tag, stay where you are
 ```
 
 The description can also be given as the positional `NAME`, as a shorthand for `--description`; give one or the other. A `NAME` that contains a `/` is taken as the whole branch name, bypassing the template, so it cannot be combined with `--type` or `--ticket`.
 
-On a terminal, anything you leave out is asked, and only for parts the template has: the type, then the ticket if the template has one and your project uses tickets (see [`commit.ticket`](../guides/public-api.md#committicket)), then what you are working on, then a final confirmation. The ticket is checked against `commit.ticket.pattern`, and a required ticket (`commit.ticket.required`) must be given; without a terminal the error names `--ticket`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
+On a terminal, anything you leave out is asked, and only for parts the template has: the type, then the ticket if the template has one and a ticket is required or your project uses tickets (see [`commit.ticket`](../guides/public-api.md#committicket)), then what you are working on, then a final confirmation. The ticket is checked against `commit.ticket.pattern`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
 
 The branch is refused if the name is not a valid Git branch name or already exists.
 

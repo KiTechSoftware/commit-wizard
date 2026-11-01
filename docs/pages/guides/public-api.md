@@ -388,6 +388,27 @@ pattern = "feature/{ticket}_{slug}"   # feature/PROJ-123_add-login-page
 
 A flag for a part the template does not have (`--ticket` with `{type}/{slug}`) is refused rather than ignored. See [`cw branch new`](../commands/branch.md#creating-a-branch).
 
+### `branch.naming.require_type`
+
+**Type:** `bool`  
+**Default:** `false`  
+**Description:** `cw branch new` must be given a type (`--type`, or chosen when asked). The pattern must contain `{type}`.
+
+### `branch.naming.require_ticket`
+
+**Type:** `bool`  
+**Default:** `false`  
+**Description:** `cw branch new` must be given a ticket (`--ticket`, or typed when asked), checked against `commit.ticket.pattern`. The pattern must contain `{ticket}`. This is separate from `commit.ticket.required`, which is about commits.
+
+```toml
+[branch.naming]
+pattern = "{type}/{ticket}-{slug}"
+require_type = true
+require_ticket = true
+```
+
+The description (`--description`) is always required.
+
 ---
 
 ## `[pr]` — Pull Request policy
