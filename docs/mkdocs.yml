@@ -33,6 +33,13 @@ nav:
     - Public API Reference: guides/public-api.md
     - Registry System: guides/registry-system.md
     - Environment Variables: guides/environment.md
+    - Errors and Exit Codes: guides/exit-codes.md
+    - CI/CD: guides/ci-cd.md
+    - Installation: guides/installation.md
+    - How cw is built: guides/design.md
+    - Migrating: guides/migrating.md
+    - Vision and Scope: guides/vision.md
+    - Glossary: guides/glossary.md
     - Configuration:
       - Recommended: guides/configs/recommended.md
       - Minimal: guides/configs/minimal.md

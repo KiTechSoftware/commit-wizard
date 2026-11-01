@@ -17,12 +17,20 @@ A spellbook for your commits.
 
 ## Install
 
+Prebuilt binary (Linux, macOS, Windows), with a checksum check:
+
 ```sh
-cargo install commit-wizard --locked
+curl -fsSL https://raw.githubusercontent.com/KiTechSoftware/commit-wizard/main/scripts/install.sh | bash
 cw --version
 ```
 
-This installs the `cw` binary. It needs a recent stable Rust toolchain (**1.89 or newer**) and `git` on your `PATH`.
+Or from crates.io:
+
+```sh
+cargo install commit-wizard --locked
+```
+
+Building needs a recent stable Rust toolchain (**1.89 or newer**). `git` must be on your `PATH`. See the [installation guide](https://commit-wizard.kitechsoftware.com/guides/installation/) for Windows and pinning a version.
 
 ## Quick start
 
