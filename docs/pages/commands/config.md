@@ -109,6 +109,7 @@ inherit = true   # global config sits under this project's settings
 | `push.allow.protected`, `push.allow.force` | `true` / `false` |
 | `push.check.commits`, `push.check.branch_policy` | `true` / `false` |
 | `branch.remote` | remote name |
+| `branch.naming.pattern` | template such as `{type}/{ticket}-{slug}` |
 | `changelog.output`, `changelog.format` | file path; `markdown` or `json` |
 | `versioning.tag_prefix` | text, such as `v` |
 | `release.enabled`, `ai.enabled` | `true` / `false` (reserved sections) |

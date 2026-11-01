@@ -53,35 +53,50 @@ The picker lists local branches with their status and last commit, and also bran
 ## Creating a branch
 
 ```sh
-cw branch new "Add login page" --type feature --ticket PROJ-123
+cw branch new --description "Add login page" --type feature --ticket PROJ-123
 # → feature/PROJ-123-add-login-page
 ```
 
-The name is built from three parts, each optional but at least one of the description or ticket:
+The name is built from a template, `branch.naming.pattern`, which defaults to `{type}/{ticket}-{slug}`:
 
 | Part | From | Example |
 | --- | --- | --- |
-| Type | `--type` (`feature`, `bugfix`, `hotfix`, `chore`, `docs`, `refactor`, `release` are offered, but any word works) | `feature/` |
-| Ticket | `--ticket`, kept as you write it | `PROJ-123-` |
-| Description | `NAME`, turned into lower-case words joined by hyphens and cut to 50 characters | `add-login-page` |
+| `{type}` | `--type` / `-t`: `feature`, `bugfix`, `hotfix`, `chore`, `docs`, `refactor` and `release` are offered when you are asked, but any word works | `feature/` |
+| `{ticket}` | `--ticket`, kept as you write it | `PROJ-123-` |
+| `{slug}` | `--description` / `-d`: lower-case words joined by hyphens, cut to 50 characters | `add-login-page` |
 
-```sh
-cw branch new "Quick fix"                         # quick-fix
-cw branch new --type bugfix --ticket "#42"        # bugfix/#42
-cw branch new team/exact-name                     # used as written (it contains a /)
-cw branch new "Try it" --from v1.2.0 --no-switch  # start from a tag, stay where you are
+A part you do not give is left out together with its separator, so with no ticket the default gives `feature/add-login-page`, and with neither type nor ticket just `add-login-page`. At least a description or a ticket is needed.
+
+Set the layout you want in the config; `{slug}` is required and other text is kept as written:
+
+```toml
+[branch.naming]
+pattern = "{slug}"                    # add-login-page
+pattern = "{type}/{slug}"             # feature/add-login-page
+pattern = "{ticket}-{slug}"           # PROJ-123-add-login-page
+pattern = "{type}/{ticket}-{slug}"    # feature/PROJ-123-add-login-page  (default)
 ```
 
-A `NAME` that contains a `/` is taken as the whole branch name, so it cannot be combined with `--type` or `--ticket`.
+A flag for a part the template does not have, such as `--ticket` with `{type}/{slug}`, is refused rather than ignored. A template that is not one (an old regular expression, say) is an error that says so.
 
-On a terminal, anything you leave out is asked: the type, then the ticket if your project uses tickets (see [`commit.ticket`](../guides/public-api.md#committicket)), then what you are working on, then a final confirmation. The ticket is checked against `commit.ticket.pattern`, and a required ticket (`commit.ticket.required`) must be given; without a terminal the error names `--ticket`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
+```sh
+cw branch new "Quick fix"                          # same as --description "Quick fix"
+cw branch new --type bugfix --ticket "#42"         # bugfix/#42
+cw branch new team/exact-name                      # used as written (it contains a /)
+cw branch new -d "Try it" --from v1.2.0 --no-switch  # start from a tag, stay where you are
+```
+
+The description can also be given as the positional `NAME`, as a shorthand for `--description`; give one or the other. A `NAME` that contains a `/` is taken as the whole branch name, bypassing the template, so it cannot be combined with `--type` or `--ticket`.
+
+On a terminal, anything you leave out is asked, and only for parts the template has: the type, then the ticket if the template has one and your project uses tickets (see [`commit.ticket`](../guides/public-api.md#committicket)), then what you are working on, then a final confirmation. The ticket is checked against `commit.ticket.pattern`, and a required ticket (`commit.ticket.required`) must be given; without a terminal the error names `--ticket`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
 
 The branch is refused if the name is not a valid Git branch name or already exists.
 
 | Flag | Short | Description |
 | --- | --- | --- |
-| `--type <TYPE>` | `-t` | Kind of branch, used as the prefix |
-| `--ticket <TICKET>` | | Ticket reference to put in the name |
+| `--description <TEXT>` | `-d` | What the branch is for; becomes the `{slug}` part |
+| `--type <TYPE>` | `-t` | Kind of branch, used as the `{type}` part |
+| `--ticket <TICKET>` | | Ticket reference, used as the `{ticket}` part |
 | `--from <REF>` | | Commit, branch or tag to start from (default: the current commit) |
 | `--no-switch` | | Create the branch but stay on the current one |
 

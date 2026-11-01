@@ -372,14 +372,21 @@ protected = ["main", "master", "develop", "release/*", "hotfix/*"]
 ### `branch.naming.pattern`
 
 **Type:** `string`  
-**Default:** `"feature/{issue}"`  
-**Description:** Branch naming pattern. Reserved: the value is stored, but branch names are not enforced against it yet.
+**Default:** `"{type}/{ticket}-{slug}"`  
+**Description:** The layout of the branch names `cw branch new` creates. It is a template, not a regular expression, and branch names are not checked against it by `cw check` or `cw push`.
+
+The parts are `{type}` (the kind of branch, `--type`), `{ticket}` (`--ticket`) and `{slug}` (the description, `--description`, as lower-case words joined by hyphens). `{slug}` is required; fixed text and separators between the parts are written as they are. A part that is not given is left out together with its separator.
 
 ```toml
 [branch.naming]
-pattern = "^(feature|bugfix|hotfix)/[a-z0-9-]+$"
-# Enforces: feature/my-feature, bugfix/issue-123, hotfix/critical
+pattern = "{slug}"                    # add-login-page
+pattern = "{type}/{slug}"             # feature/add-login-page
+pattern = "{ticket}-{slug}"           # PROJ-123-add-login-page
+pattern = "{type}/{ticket}-{slug}"    # feature/PROJ-123-add-login-page  (default)
+pattern = "feature/{ticket}_{slug}"   # feature/PROJ-123_add-login-page
 ```
+
+A flag for a part the template does not have (`--ticket` with `{type}/{slug}`) is refused rather than ignored. See [`cw branch new`](../commands/branch.md#creating-a-branch).
 
 ---
 

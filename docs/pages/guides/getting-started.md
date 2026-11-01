@@ -270,7 +270,7 @@ The `.cwizard.toml` file (created by `cw init`) supports these sections:
 | Section | Purpose |
 | --- | --- |
 | `[commit]` | Commit type/scope definitions, subject length, breaking change behavior |
-| `[branch]` | Protected branches, branch naming patterns |
+| `[branch]` | Protected branches, the layout of new branch names |
 | `[pr]` | PR title requirements (reserved; no command uses it yet) |
 | `[check]` | Which branches require conventional commits |
 | `[push]` | Protected branch / force push restrictions |

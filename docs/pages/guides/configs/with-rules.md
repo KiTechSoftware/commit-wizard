@@ -215,7 +215,7 @@ header_format = "{ticket}: "
 protected = ["main", "staging", "release/*"]
 
 [branch.naming]
-pattern = "^(feature|bugfix|hotfix|release)/[a-z0-9-]+(/[a-z0-9-]+)*$"
+pattern = "{type}/{ticket}-{slug}"   # layout of cw branch new names
 
 # Changelog (manually reference changelog_section_order)
 [changelog]

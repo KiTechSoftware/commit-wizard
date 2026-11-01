@@ -41,7 +41,7 @@ To turn the environment layer off entirely, set `CW_ALLOW_ENV_OVERRIDE=false`.
 | --- | --- | --- |
 | `CW_BRANCH_REMOTE` | `branch.remote` | remote name |
 | `CW_BRANCH_PROTECTED` | `branch.protected` | list of branch names or patterns |
-| `CW_BRANCH_NAMING_PATTERN` | `branch.naming.pattern` | regular expression |
+| `CW_BRANCH_NAMING_PATTERN` | `branch.naming.pattern` | template such as `{type}/{ticket}-{slug}` |
 | `CW_PUSH_ALLOW_PROTECTED` | `push.allow.protected` | boolean |
 | `CW_PUSH_ALLOW_FORCE` | `push.allow.force` | boolean |
 | `CW_PUSH_CHECK_COMMITS` | `push.check.commits` | boolean |
