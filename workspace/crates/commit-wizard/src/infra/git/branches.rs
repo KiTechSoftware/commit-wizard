@@ -138,6 +138,19 @@ impl Git {
         self.ensure_success("git fetch --prune", output)
     }
 
+    /// Deletes `branch` on `remote` (`git push <remote> --delete <branch>`).
+    pub fn delete_remote_branch(&self, remote: &str, branch: &str) -> Result<(), Error> {
+        let output = self
+            .run_dynamic(["push", remote, "--delete", branch])
+            .ok_or_else(|| {
+                ErrorCode::ProcessFailure
+                    .error()
+                    .with_context("command", "git push <remote> --delete <branch>")
+                    .with_context("cwd", self.cwd.display().to_string())
+            })?;
+        self.ensure_success("git push <remote> --delete <branch>", output)
+    }
+
     /// Whether `name` is acceptable as a branch name (`git check-ref-format --branch`).
     pub fn is_valid_branch_name(&self, name: &str) -> bool {
         self.run_dynamic(["check-ref-format", "--branch", name])

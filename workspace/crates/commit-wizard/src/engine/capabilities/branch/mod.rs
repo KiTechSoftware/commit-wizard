@@ -195,12 +195,24 @@ pub struct PrunePlan {
 
 /// Sorts the local branches whose remote branch has gone into those to delete, those that
 /// need `--force`, and those never touched (the current branch and protected ones).
-pub fn plan_prune(branches: &[BranchInfo], protected: &[String]) -> PrunePlan {
+///
+/// With `include_merged`, a branch that still follows an existing remote branch is also
+/// picked when it is merged. A branch following nothing never is: one just created at
+/// the current commit looks merged too.
+pub fn plan_prune(
+    branches: &[BranchInfo],
+    protected: &[String],
+    include_merged: bool,
+) -> PrunePlan {
     let mut plan = PrunePlan {
         candidates: Vec::new(),
         kept: Vec::new(),
     };
-    for branch in branches.iter().filter(|b| b.state == BranchState::Gone) {
+    let picked = |b: &&BranchInfo| {
+        b.state == BranchState::Gone
+            || (include_merged && b.merged && b.state != BranchState::Local)
+    };
+    for branch in branches.iter().filter(picked) {
         if branch.current {
             plan.kept.push((branch.clone(), "it is checked out"));
         } else if is_protected_branch(&branch.name, protected) {
@@ -210,6 +222,39 @@ pub fn plan_prune(branches: &[BranchInfo], protected: &[String]) -> PrunePlan {
         } else {
             plan.candidates
                 .push((branch.clone(), PruneVerdict::Unmerged));
+        }
+    }
+    plan
+}
+
+/// Remote-tracking branches (`origin/topic`) that are merged and safe to delete from the
+/// remote, and those left alone with the reason. Protected branches and the branch the
+/// checked-out one follows are never picked.
+pub fn plan_prune_remote(
+    remotes: &[BranchInfo],
+    locals: &[BranchInfo],
+    protected: &[String],
+) -> PrunePlan {
+    let mut plan = PrunePlan {
+        candidates: Vec::new(),
+        kept: Vec::new(),
+    };
+    let followed = locals
+        .iter()
+        .find(|b| b.current)
+        .and_then(|b| b.upstream.as_deref());
+    for branch in remotes.iter().filter(|b| b.merged) {
+        let short = branch
+            .name
+            .split_once('/')
+            .map_or(&*branch.name, |(_, s)| s);
+        if followed == Some(branch.name.as_str()) {
+            plan.kept
+                .push((branch.clone(), "the checked-out branch follows it"));
+        } else if is_protected_branch(short, protected) {
+            plan.kept.push((branch.clone(), "it is protected"));
+        } else {
+            plan.candidates.push((branch.clone(), PruneVerdict::Delete));
         }
     }
     plan
@@ -347,7 +392,7 @@ mod tests {
             info("live", BranchState::UpToDate, false, true),
             info("local-only", BranchState::Local, false, true),
         ];
-        let plan = plan_prune(&branches, &protected);
+        let plan = plan_prune(&branches, &protected, false);
 
         let names = |v: &PruneVerdict| -> Vec<&str> {
             plan.candidates

@@ -661,3 +661,59 @@ fn prune_learns_about_deleted_remote_branches_by_fetching() {
     assert!(online.status.success(), "{}", text(&online));
     assert!(!local_branches(&repo).contains(&"feature/done".to_string()));
 }
+
+#[test]
+fn prune_merged_also_takes_merged_branches_whose_remote_still_exists() {
+    let repo = repo();
+    feature(&repo, "done", true);
+    feature(&repo, "live", false);
+    repo.git(&["switch", "-q", "-c", "fresh"]);
+    repo.git(&["switch", "-q", "main"]);
+
+    let plain = repo.cw(&["branch", "prune", "--yes"]);
+    assert!(
+        text(&plain).contains("Nothing to Prune"),
+        "{}",
+        text(&plain)
+    );
+
+    let out = repo.cw(&["branch", "prune", "--merged", "--yes"]);
+    assert!(out.status.success(), "{}", text(&out));
+    // `fresh` follows nothing and looks merged, so it stays; so does unmerged work.
+    assert_eq!(local_branches(&repo), ["feature/live", "fresh", "main"]);
+}
+
+#[test]
+fn prune_remote_deletes_merged_branches_from_the_remote() {
+    let repo = repo();
+    feature(&repo, "done", true);
+    feature(&repo, "live", false);
+
+    let preview = repo.cw(&["branch", "prune", "--remote", "--dry-run"]);
+    assert!(preview.status.success(), "{}", text(&preview));
+    assert!(text(&preview).contains("origin/feature/done"));
+    assert!(
+        !repo
+            .git(&["ls-remote", "origin", "feature/done"])
+            .is_empty()
+    );
+
+    let refused = repo.cw(&["branch", "prune", "--remote"]);
+    assert!(!refused.status.success());
+
+    let out = repo.cw(&["branch", "prune", "--remote", "--yes"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        repo.git(&["ls-remote", "origin", "feature/done"])
+            .is_empty()
+    );
+    assert!(
+        !repo
+            .git(&["ls-remote", "origin", "feature/live"])
+            .is_empty()
+    );
+    // never the protected main branch, though it is merged into itself
+    assert!(!repo.git(&["ls-remote", "origin", "main"]).is_empty());
+    // the local copy is untouched by --remote alone
+    assert!(local_branches(&repo).contains(&"feature/done".to_string()));
+}

@@ -59,6 +59,13 @@ pub enum BranchSubcommand {
         /// Do not fetch first; use what the last fetch found
         #[arg(long)]
         no_fetch: bool,
+        /// Also delete local branches that are merged, even if their remote branch
+        /// still exists
+        #[arg(long)]
+        merged: bool,
+        /// Also delete merged branches from the remote (`git push --delete`)
+        #[arg(long)]
+        remote: bool,
     },
 }
 
@@ -84,9 +91,20 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
                 no_switch,
             },
         ),
-        Some(BranchSubcommand::Prune { force, no_fetch }) => {
-            branch::prune::run(ctx, force, no_fetch)
-        }
+        Some(BranchSubcommand::Prune {
+            force,
+            no_fetch,
+            merged,
+            remote,
+        }) => branch::prune::run(
+            ctx,
+            branch::prune::Options {
+                force,
+                no_fetch,
+                merged,
+                remote,
+            },
+        ),
         // Bare `cw branch`: choose a branch on a terminal, otherwise list them.
         None if ctx.is_interactive() => branch::switch::run(ctx, None),
         None => branch::list::run(ctx, false, false),

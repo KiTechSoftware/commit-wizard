@@ -1,4 +1,5 @@
-//! `cw branch prune`: delete local branches whose remote branch no longer exists.
+//! `cw branch prune`: delete local branches whose remote branch no longer exists, with
+//! `--merged` any merged local branch, and with `--remote` merged branches on the remote.
 //!
 //! The usual case is a branch that was merged and deleted on the remote. Only
 //! branches already merged into the checked-out history are deleted; one with
@@ -14,11 +15,26 @@ use crate::{
     core::{Context, CoreResult},
     engine::{
         ErrorCode, PromptTrait,
-        capabilities::branch::{PruneVerdict, plan_prune},
+        capabilities::branch::{PruneVerdict, plan_prune, plan_prune_remote},
     },
 };
 
-pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
+/// What was asked of `cw branch prune`, from flags.
+#[derive(Debug, Clone, Default)]
+pub struct Options {
+    pub force: bool,
+    pub no_fetch: bool,
+    pub merged: bool,
+    pub remote: bool,
+}
+
+pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
+    let Options {
+        force,
+        no_fetch,
+        merged,
+        remote,
+    } = options;
     let start = Instant::now();
     let git = ctx.git();
     let ui = ctx.ui();
@@ -31,7 +47,18 @@ pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
     }
 
     let branches = git.branch_infos()?;
-    let plan = plan_prune(&branches, &ctx.policy().branch.protected_patterns);
+    let protected = &ctx.policy().branch.protected_patterns;
+    let plan = plan_prune(&branches, protected, merged);
+    let remote_plan = if remote {
+        plan_prune_remote(&git.remote_branch_infos()?, &branches, protected)
+    } else {
+        plan_prune_remote(&[], &branches, protected)
+    };
+    let remote_doomed: Vec<_> = remote_plan
+        .candidates
+        .iter()
+        .map(|(branch, _)| branch.clone())
+        .collect();
 
     let doomed: Vec<_> = plan
         .candidates
@@ -61,18 +88,34 @@ pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
             format!("kept: {why}"),
         ]);
     }
+    for (branch, _) in &remote_plan.candidates {
+        preview.push(vec![
+            branch.name.clone(),
+            branch.hash.clone(),
+            "remote, merged: will be deleted from the remote".to_string(),
+        ]);
+    }
+    for (branch, why) in &remote_plan.kept {
+        preview.push(vec![
+            branch.name.clone(),
+            branch.hash.clone(),
+            format!("kept: {why}"),
+        ]);
+    }
     let headers = ["branch", "tip", "outcome"].map(str::to_string).to_vec();
 
     if preview.is_empty() {
         let content = ui
             .new_output_content()
             .title("Nothing to Prune")
-            .subtitle("No local branch follows a remote branch that is gone")
+            .subtitle("No branch matches")
             .data("deleted", "0");
         return ui.print_with_meta(&content, Some(&meta(ctx, start, "branch.prune")), true);
     }
 
-    if ctx.dry_run() || doomed.is_empty() {
+    let total = doomed.len() + remote_doomed.len();
+
+    if ctx.dry_run() || total == 0 {
         let content = ui
             .new_output_content()
             .title("Prune Preview")
@@ -81,7 +124,7 @@ pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
             } else {
                 "Nothing can be deleted without --force"
             })
-            .data("would_delete", doomed.len().to_string())
+            .data("would_delete", total.to_string())
             .data("needs_force", needs_force.to_string())
             .table(None, Table::new(headers, preview));
         return ui.print_with_meta(&content, Some(&meta(ctx, start, "branch.prune")), true);
@@ -97,13 +140,13 @@ pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
         let shown = ui
             .new_output_content()
             .title("Branches to Prune")
-            .subtitle("Their remote branch is gone")
+            .subtitle("Deleting from a remote cannot be undone with cw")
             .table(None, Table::new(headers.clone(), preview.clone()));
         ui.print_with_meta(&shown, Some(&meta(ctx, start, "branch.prune")), true)?;
         let question = format!(
             "Delete {} branch{}?",
-            doomed.len(),
-            if doomed.len() == 1 { "" } else { "es" }
+            total,
+            if total == 1 { "" } else { "es" }
         );
         if !ui.confirm(&question, false)? {
             ui.logger().warn("Nothing deleted");
@@ -134,10 +177,35 @@ pub fn run(ctx: &Context, force: bool, no_fetch: bool) -> CoreResult<()> {
         }
     }
 
+    for branch in &remote_doomed {
+        let (name, short) = branch
+            .name
+            .split_once('/')
+            .unwrap_or(("origin", &branch.name));
+        match git.delete_remote_branch(name, short) {
+            Ok(()) => {
+                deleted += 1;
+                results.push(vec![
+                    branch.name.clone(),
+                    branch.hash.clone(),
+                    format!(
+                        "deleted from {name} (restore: git push {name} {}:refs/heads/{short})",
+                        branch.hash
+                    ),
+                ]);
+            }
+            Err(err) => results.push(vec![
+                branch.name.clone(),
+                branch.hash.clone(),
+                format!("not deleted: {err}"),
+            ]),
+        }
+    }
+
     let content = ui
         .new_output_content()
         .title("Branches Pruned")
-        .subtitle(format!("Deleted {deleted} of {}", doomed.len()))
+        .subtitle(format!("Deleted {deleted} of {total}"))
         .data("deleted", deleted.to_string())
         .data("needs_force", needs_force.to_string())
         .table(None, Table::new(headers, results));
