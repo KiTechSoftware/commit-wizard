@@ -15,7 +15,7 @@ Run bare on a terminal, `cw branch` opens the branch picker (the same as `cw bra
 | `list` | List branches with what they follow and where they stand |
 | `switch [NAME]` | Switch to a branch, picking from a list when you give no name |
 | `new [NAME]` | Create a branch named `<type>/<ticket>-<description>` and switch to it |
-| `prune` | Delete local branches whose remote branch is gone |
+| `prune` | Delete local branches whose remote branch is gone; `--merged` and `--remote` widen it |
 
 ## Listing branches
 
@@ -145,6 +145,10 @@ Each deletion prints the command that restores it, such as `git branch feature/l
 | --- | --- |
 | `--force` | Also delete branches with commits that are not merged anywhere else |
 | `--no-fetch` | Do not fetch first; use what the last fetch found |
+| `--merged` | Also delete local branches that are merged into the branch you are on, even when their remote branch still exists. A branch that follows no remote is never picked, because one just created at the current commit looks merged too. |
+| `--remote` | Also delete merged branches from the remote (`git push <remote> --delete`). Protected branches and the branch the checked-out one follows are never deleted. `--force` does not apply: only merged remote branches are touched. |
+
+Deleting from a remote is outward-facing, so it always needs the confirmation (or `--yes`), and each result prints the command that restores the branch, such as `git push origin 1a2b3c4:refs/heads/feature/login`.
 
 ## Global flags
 
