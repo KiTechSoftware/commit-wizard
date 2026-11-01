@@ -69,9 +69,9 @@ What is required:
 
 | Flag | Required? |
 | --- | --- |
-| `--description` / `-d` | **Always.** On a terminal you are asked until you give one; without a terminal the error names `--description`. |
+| `--description` / `-d` | Required **unless a ticket is given**. With `-T`, the ticket alone can name the branch (`bugfix/#42`). Without either, a terminal asks until you give a description, and without a terminal the error names `--description` and `--ticket`. |
 | `--type` / `-t` | Optional, unless `branch.naming.require_type = true` |
-| `--ticket` / `-T` | Optional, unless `branch.naming.require_ticket = true` |
+| `--ticket` / `-T` | Optional, unless `branch.naming.require_ticket = true`; if you give one, `-d` is not needed |
 
 A part you do not give is left out together with its separator, so with no ticket the default gives `feature/add-login-page`, and with neither type nor ticket just `add-login-page`.
 
@@ -101,19 +101,20 @@ A flag for a part the template does not have, such as `--ticket` with `{type}/{s
 ```sh
 cw branch new "Quick fix"                          # same as --description "Quick fix"
 cw branch new -d crash -t bugfix -T "#42"          # bugfix/#42-crash
+cw branch new -t bugfix -T "#42"                   # bugfix/#42  (the ticket alone is enough)
 cw branch new team/exact-name                      # used as written (it contains a /)
 cw branch new -d "Try it" --from v1.2.0 --no-switch  # start from a tag, stay where you are
 ```
 
 The description can also be given as the positional `NAME`, as a shorthand for `--description`; give one or the other. A `NAME` that contains a `/` is taken as the whole branch name, bypassing the template, so it cannot be combined with `--type` or `--ticket`.
 
-On a terminal, anything you leave out is asked, and only for parts the template has: the type, then the ticket if the template has one and a ticket is required or your project uses tickets (see [`commit.ticket`](../guides/public-api.md#committicket)), then what you are working on, then a final confirmation. The ticket is checked against `commit.ticket.pattern`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
+On a terminal, anything you leave out is asked, and only for parts the template has: the type (skippable unless required), then the ticket (skippable unless required), then what you are working on. The description is required when you skipped the ticket and optional when you gave one, then a final confirmation. The ticket is checked against `commit.ticket.pattern`. A branch named with the ticket lets `cw commit` find it when `commit.ticket.source` is `branch`.
 
 The branch is refused if the name is not a valid Git branch name or already exists.
 
 | Flag | Short | Description |
 | --- | --- | --- |
-| `--description <TEXT>` | `-d` | What the branch is for; becomes the `{slug}` part |
+| `--description <TEXT>` | `-d` | What the branch is for; becomes the `{slug}` part. Not needed when a ticket is given |
 | `--type <TYPE>` | `-t` | Kind of branch, used as the `{type}` part |
 | `--ticket <TICKET>` | `-T` | Ticket reference, used as the `{ticket}` part |
 | `--from <REF>` | | Commit, branch or tag to start from (default: the current commit) |

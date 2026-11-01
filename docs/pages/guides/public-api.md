@@ -407,7 +407,7 @@ require_type = true
 require_ticket = true
 ```
 
-The description (`--description`) is always required.
+A branch needs a description (`--description`) or a ticket (`--ticket`); either one alone is enough, and requiring the ticket makes the description optional.
 
 ---
 
