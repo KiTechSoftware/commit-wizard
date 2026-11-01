@@ -4,7 +4,7 @@ Commit Wizard (`cw`) helps you enforce **Conventional Commits**, automate **Sema
 
 ## Installation
 
-Install via Cargo:
+Download a prebuilt binary (see [Installation](installation.md)), or install via Cargo:
 
 ```sh
 cargo install commit-wizard
