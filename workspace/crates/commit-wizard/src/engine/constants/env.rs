@@ -1,10 +1,9 @@
+//! Names of the `CW_*` environment variables.
+
 pub const ENV_VAR_PREFIX: &str = "CW_";
 
 // Meta / runtime control
 pub const ENV_ALLOW_ENV_OVERRIDE: &str = "CW_ALLOW_ENV_OVERRIDE";
-pub const ENV_CI_CONFIG: &str = "CW_CI_CONFIG";
-pub const ENV_IGNORE_CONFIG_FILE: &str = "CW_IGNORE_CONFIG_FILE";
-pub const ENV_DEFAULT_BRANCH: &str = "CW_DEFAULT_BRANCH";
 
 // Registry (SRS §6)
 pub const ENV_REGISTRY_URL: &str = "CW_REGISTRY_URL";

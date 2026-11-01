@@ -1,3 +1,5 @@
+//! Registry selection and the files of a registry that has been fetched.
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 

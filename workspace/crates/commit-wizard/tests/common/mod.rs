@@ -60,6 +60,14 @@ impl Repo {
         let out = Command::new("git")
             .args(args)
             .current_dir(self.path())
+            // Like `cw()`: never read the developer's own git configuration.
+            .env("HOME", self.home.path())
+            .env("XDG_CONFIG_HOME", self.home.path())
+            .env("APPDATA", self.home.path())
+            .env("LOCALAPPDATA", self.home.path())
+            .env("USERPROFILE", self.home.path())
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .envs(self.gnupg.iter().map(|g| ("GNUPGHOME", g.path())))
             .output()
             .unwrap();
         assert!(out.status.success(), "git {args:?}: {}", text(&out));
@@ -80,6 +88,9 @@ impl Repo {
             .current_dir(self.path())
             .env("HOME", self.home.path())
             .env("XDG_CONFIG_HOME", self.home.path())
+            .env("APPDATA", self.home.path())
+            .env("LOCALAPPDATA", self.home.path())
+            .env("USERPROFILE", self.home.path())
             .env("NO_COLOR", "1")
             .envs(self.gnupg.iter().map(|g| ("GNUPGHOME", g.path())))
             .stdin(std::process::Stdio::null())
@@ -105,6 +116,17 @@ impl Repo {
             .lines()
             .map(str::to_string)
             .collect()
+    }
+}
+
+/// A `file://` URL for a local directory, as git accepts it on every platform
+/// (`file:///tmp/x`, `file:///C:/Users/x`).
+pub fn file_url(dir: &Path) -> String {
+    let path = dir.display().to_string().replace('\\', "/");
+    if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
     }
 }
 
@@ -264,13 +286,19 @@ impl Repo {
             .current_dir(self.path())
             .env("HOME", self.home.path())
             .env("XDG_CONFIG_HOME", self.home.path())
+            .env("APPDATA", self.home.path())
+            .env("LOCALAPPDATA", self.home.path())
+            .env("USERPROFILE", self.home.path())
             .env("NO_COLOR", "1")
-            .env("TERM", "xterm");
+            .env("TERM", "xterm")
+            .envs(self.gnupg.iter().map(|g| ("GNUPGHOME", g.path())));
         let mut session = expectrl::Session::spawn(cmd).unwrap();
         session.set_expect_timeout(Some(std::time::Duration::from_secs(10)));
         Pty { session }
     }
+}
 
+impl Repo {
     /// Subject lines of all commits, newest first.
     pub fn subjects(&self) -> Vec<String> {
         self.git(&["log", "--format=%s"])
@@ -297,6 +325,17 @@ impl Repo {
         let dir = self.home.path().join("cwizard");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("config.toml"), contents).unwrap();
+    }
+
+    /// Write a global file (`config.yaml`, `rules.json`, ...) for this repo's isolated HOME.
+    pub fn write_global_file(&self, name: &str, contents: &str) {
+        let dir = self.home.path().join("cwizard");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(name), contents).unwrap();
+    }
+
+    pub fn home_path(&self) -> &Path {
+        self.home.path()
     }
 
     pub fn write(&self, name: &str, contents: &str) {

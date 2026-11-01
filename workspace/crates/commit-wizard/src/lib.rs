@@ -1,36 +1,27 @@
-//! # Commit Wizard
+#![doc = include_str!("../README.md")]
 //!
-//! A lightweight Rust library for **Conventional Commits**, semantic versioning, and changelog automation.
+//! ---
 //!
-//! This crate provides the core functionality for validating commits, managing versions, generating
-//! changelogs, and managing Git tags according to semantic versioning principles. It can be used
-//! programmatically via the library interface or through the `cw` CLI binary.
+//! ## This is a tool, not a library
 //!
-//! ## Modules
+//! The code is published as a library crate only so that the `cw` binary, its tests and
+//! docs.rs can share it. Everything except [`cli::run`] is hidden from these docs and carries
+//! **no stability guarantee**: it may change in any release, patch releases included. If you
+//! want to build on `cw`, depend on its command line and its configuration files, not on this
+//! API.
 //!
-//! - [`cli`]: Command-line interface implementation (public commands and arguments)
-//! - [`core`]: Core application logic including bootstrap, context management, and use cases
-//! - [`engine`]: Business logic layer with traits, models, capabilities, and configuration
-//! - [`infra`]: Infrastructure layer for Git operations, UI interactions, and file system access
+//! ## Contributing to the code
 //!
-//! ## Example Usage
+//! The crate is layered from the outside in: `cli` (argument parsing and dispatch), `core`
+//! (the use case behind each command), `engine` (models, configuration and rules, with no I/O)
+//! and `infra` (Git, terminal and file-system adapters).
+//! [ARCHITECTURE.md](https://github.com/KiTechSoftware/commit-wizard/blob/main/ARCHITECTURE.md)
+//! walks through how a command flows through them and how to add one, and
+//! `cargo doc --document-private-items --open` shows the hidden modules.
 //!
-//! ```ignore
-//! use commit_wizard::core::Context;
+//! ## What `cw` enforces
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create application context
-//!     let context = Context::new().await?;
-//!
-//!     // Use context to access capabilities and operations
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Conventional Commits
-//!
-//! This library enforces [Conventional Commits](https://www.conventionalcommits.org/) format:
+//! Commits follow the Conventional Commits layout:
 //!
 //! ```text
 //! <type>(<scope>): <description>
@@ -40,21 +31,28 @@
 //! <footer>
 //! ```
 //!
-//! Supported types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+//! The allowed types and scopes come from your configuration (the standard profile ships
+//! `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test` and `chore`; a shared registry or
+//! your own config can add more). Version bumps follow [Semantic Versioning](https://semver.org/):
 //!
-//! ## Semantic Versioning
-//!
-//! Version bumping follows [Semantic Versioning](https://semver.org/) principles:
-//! - `MAJOR`: Breaking changes (`feat!` or `BREAKING CHANGE`)
-//! - `MINOR`: New features (`feat`)
-//! - `PATCH`: Bug fixes (`fix`)
+//! - **major**: a breaking change (`feat!:` or a `BREAKING CHANGE:` footer)
+//! - **minor**: a new feature (`feat`)
+//! - **patch**: a fix (`fix`) and other patch-level types
+
+#![warn(missing_docs)]
 
 pub mod cli;
+
+// Implementation detail: hidden from the API docs and not covered by any stability promise.
+#[doc(hidden)]
 pub mod core;
+#[doc(hidden)]
 pub mod engine;
+#[doc(hidden)]
 pub mod infra;
 
 /// A macro to create a vector of strings from a list of string literals.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! strings {
     ($($s:expr),* $(,)?) => {
@@ -62,6 +60,7 @@ macro_rules! strings {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! string_vec_map {
     (

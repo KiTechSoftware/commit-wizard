@@ -9,7 +9,7 @@ This guide shows recommended configurations for different team types and sizes.
 ```toml
 version = 1
 
-[commit.subject_max_length]
+[commit]
 subject_max_length = 72
 
 # Use all built-in commit types and defaults
@@ -38,7 +38,7 @@ cw init --profile minimal
 ```toml
 version = 1
 
-[commit.subject_max_length]
+[commit]
 subject_max_length = 72
 
 [commit.scopes]
@@ -118,13 +118,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: commit-wizard@0.0.2
-      - run: cw check --ci --from origin/${{ github.base_ref }} --to HEAD
+          fetch-depth: 0   # cw needs the history to check it
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install commit-wizard --locked
+      - run: cw check --ci --from origin/${{ github.base_ref }} --to HEAD   # fails the job on a bad commit
 ```
 
 ---
@@ -242,8 +241,7 @@ types = ["feat", "fix", "security"]
 [commit.ticket]
 required = true
 pattern = "PROJ-\\d+"
-source = "branch_or_prompt"
-header_format = "[{ticket}] "
+source = "branch_or_prompt"   # take it from the branch name, or ask
 
 [commit.breaking]
 require_header = true
@@ -265,7 +263,7 @@ branch_policy = true
 [check.commits]
 enforce_on = "all_branches"  # Strict checking everywhere
 
-# Release workflows (v0.0.3+)
+# Release workflows (reserved: accepted, but no command uses it yet)
 [release]
 enabled = true
 source_branch = "develop"

@@ -1,3 +1,5 @@
+//! Constants: application name, defaults, emoji, environment variable names and config file paths.
+
 pub mod defaults;
 pub mod emoji;
 pub mod env;
@@ -18,6 +20,12 @@ pub const REGISTRY_BASE_CONFIG_FILE_NAME: &str = "config.toml";
 pub const REGISTRY_RULES_CONFIG_FILE_NAME: &str = "rules.toml";
 pub const PROJECT_CONFIG_FILE_NAME: &str = "cwizard.toml";
 pub const PROJECT_CONFIG_FILE_NAME_HIDDEN: &str = ".cwizard.toml";
+
+/// File names without the extension; each is also looked up as `.yaml`, `.yml` and `.json`.
+pub const PROJECT_CONFIG_STEM: &str = "cwizard";
+pub const PROJECT_CONFIG_STEM_HIDDEN: &str = ".cwizard";
+pub const CONFIG_STEM: &str = "config";
+pub const RULES_STEM: &str = "rules";
 
 pub const CONFIG_DIR_NAME: &str = "cwizard";
 

@@ -1,6 +1,6 @@
 # Configuration: Full
 
-Reference configuration with every supported field in v0.0.2. This is not meant to be used as-is; it's a reference for what's available.
+Reference configuration with every supported field. This is not meant to be used as-is; it's a reference for what's available.
 
 ```toml
 version = 1
@@ -125,7 +125,7 @@ require_footer = true  # Require BREAKING CHANGE: footer
 footer_key = "BREAKING CHANGE"
 footer_keys = ["BREAKING", "BREAKING-CHANGE"]
 emoji = "💥"
-emoji_mode = "prefix"  # "prefix", "suffix", "replace"
+emoji_mode = "prepend"  # "prepend", "append", "replace", "none" (not applied by any command yet)
 
 # Commit protection on protected branches
 [commit.protected]
@@ -138,7 +138,7 @@ warn = true          # Warn when attempting
 required = true
 pattern = "([A-Z]+-\\d+|#\\d+)"  # PROJ-123 or #123
 source = "branch_or_prompt"  # "branch", "prompt", "branch_or_prompt", "disabled"
-header_format = "[{ticket}] "  # Prefix subject with ticket
+header_format = "{ticket}: "   # feat: PROJ-123: add parser
 
 
 # ── Branch configuration ────────────────────────────────────────────
@@ -148,11 +148,11 @@ remote = "origin"
 protected = ["main", "master", "staging", "release/*", "hotfix/*"]
 
 [branch.naming]
-pattern = "^(feature|bugfix|hotfix|release)/[a-z0-9-]+(/[a-z0-9-]+)*$"
+pattern = "{type}/{ticket}-{slug}"   # layout of cw branch new names
 
 
 # ── PR configuration ────────────────────────────────────────────────
-# (Basic structure defined; full support in v0.0.3+)
+# (Reserved: accepted and validated, but no command uses it yet)
 
 [pr]
 enabled = true
@@ -251,7 +251,7 @@ title = "Chores"
 order = 13
 
 
-# ── Release configuration (v0.0.3+) ────────────────────────────────
+# ── Release configuration (reserved: no command uses it yet) ───────
 
 [release]
 enabled = false
@@ -316,7 +316,7 @@ team_on_call = "security-team@company.com"
 ### Integration fields (connect to external systems)
 
 - `registry` — Use a shared registry
-- `commit.ticket.source` — Extract tickets from branch names
+- `commit.ticket.source` — Where `cw commit` gets the ticket: the branch name, a question, or both
 - `commit.ticket.pattern` — Validate ticket IDs
 
 ### Descriptive fields (metadata)

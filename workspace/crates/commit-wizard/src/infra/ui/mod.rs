@@ -21,11 +21,25 @@ thread_local! {
     static UI_CACHE: RefCell<Option<Ui>> = const { RefCell::new(None) };
 }
 
+/// What happens when a command asks the user a question.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PromptPolicy {
+    /// Show the prompt and wait for an answer (a person at a terminal).
+    #[default]
+    Ask,
+    /// Answer with the default (`--yes`, `--ci`). A question with no default
+    /// cannot be answered and fails, so it is never guessed.
+    Defaults,
+    /// Never ask (`--non-interactive`, no terminal, machine-readable output).
+    Refuse,
+}
+
 #[derive(Debug, Clone)]
 pub struct Ui {
     config: Config,
     envelope: envelope::EnvelopeConfig,
     prompt_theme: scriba::prompt::PromptTheme,
+    prompt_policy: PromptPolicy,
 }
 
 impl Ui {
@@ -38,19 +52,41 @@ impl Ui {
             config,
             envelope: envelope::EnvelopeConfig::default(),
             prompt_theme: scriba::prompt::PromptTheme::default(),
+            prompt_policy: PromptPolicy::default(),
         }
+    }
+
+    pub fn with_prompt_policy(mut self, policy: PromptPolicy) -> Self {
+        self.prompt_policy = policy;
+        self
+    }
+
+    pub fn prompt_policy(&self) -> PromptPolicy {
+        self.prompt_policy
     }
 
     /// Returns a cached Ui instance configured with the given config and envelope mode.
     /// The cache is per-thread and keyed by config. If the same config is requested,
     /// the cached instance is returned, avoiding repeated creation.
-    pub fn cached_with_config(config: Config, envelope_mode: envelope::EnvelopeMode) -> Self {
+    pub fn cached_with_config(
+        config: Config,
+        envelope_mode: envelope::EnvelopeMode,
+        prompt_policy: PromptPolicy,
+    ) -> Self {
         UI_CACHE.with(|cache| {
             let mut cached = cache.borrow_mut();
             match cached.as_ref() {
-                Some(ui) if ui.config == config && ui.envelope.mode == envelope_mode => ui.clone(),
+                Some(ui)
+                    if ui.config == config
+                        && ui.envelope.mode == envelope_mode
+                        && ui.prompt_policy == prompt_policy =>
+                {
+                    ui.clone()
+                }
                 _ => {
-                    let ui = Self::with_config(config).with_envelope_mode(envelope_mode);
+                    let ui = Self::with_config(config)
+                        .with_envelope_mode(envelope_mode)
+                        .with_prompt_policy(prompt_policy);
                     *cached = Some(ui.clone());
                     ui
                 }

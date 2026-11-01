@@ -77,13 +77,9 @@ Project .cwizard.toml:
 Result: mode = "required" (project wins)
 ```
 
-### 4. Rules are merged
+### 4. Rules come from one place
 
-Similarly for `[rules]`:
-
-```sh
-Project rules > Registry rules > Defaults
-```
+Unlike settings, `[rules]` tables are **not merged**: `cw` uses the first rules table it finds, so a project that defines `[rules]` ignores the registry's rules (see [Rules precedence](#rules-precedence-reusable-values)).
 
 ## Registry structure
 
@@ -145,9 +141,11 @@ Git registries are cached locally to avoid repeated clones.
 ### Cache location
 
 ```sh
-~/.cache/cwizard/registries/   (Linux/macOS)
-%APPDATA%\cwizard\cache\       (Windows)
+~/.cache/cwizard/registries/        (Linux/macOS; $XDG_CACHE_HOME/cwizard/registries if set)
+%LOCALAPPDATA%\cwizard\registries\   (Windows)
 ```
+
+Each registry gets its own folder, named by a hash of its URL, so the names are not readable.
 
 ### Cache invalidation
 
@@ -165,8 +163,8 @@ Git registries are cached locally to avoid repeated clones.
 **Force refresh:**
 
 ```bash
-rm -rf ~/.cache/cwizard/registries/<registry-id>
-# Cache rebuilds on next run
+rm -rf ~/.cache/cwizard/registries
+# The cache rebuilds on the next run
 ```
 
 ### Disabling the cache
@@ -267,14 +265,14 @@ Anything the local config does not mention keeps coming from the registry, so a
 project can change one setting, one commit type, or one field of a type.
 
 ```toml
-# registry: [commit.types.fix] description = "A bug fix", bump = "Patch"
+# registry: [commit.types.fix] description = "A bug fix", bump = "patch"
 
 # .cwizard.toml
 [commit]
 subject_max_length = 72        # changes one value; types and scopes still come from the registry
 
 [commit.types.fix]
-bump = "Minor"                 # changes one field; description etc. stay from the registry
+bump = "minor"                 # changes one field; description etc. stay from the registry
 
 [commit.types.docs]            # adds a type the registry does not have
 description = "Documentation"
@@ -297,11 +295,12 @@ Rules of the merge:
 ### Rules precedence (reusable values)
 
 ```sh
-1. Project rules (in project/.cwizard.toml)
+1. Project rules (the [rules] table in .cwizard.toml)
 2. Registry rules (in registry/rules.toml)
-3. Global rules (in ~/.config/cwizard/rules.toml)
-4. Built-in rules
+3. Global rules (in ~/.config/cwizard/rules.toml), only when the registry has no rules
 ```
+
+The **first** of these that exists is used whole; rules from different places are never combined. A `@rules.<name>` reference that the chosen rules do not define is an error.
 
 ## Working with multiple registries
 
@@ -322,10 +321,9 @@ url = "/opt/test-registry"
 # Use one
 [registry]
 use = "org-standards"
-
-# Switch at runtime:
-# cw commit --registry-section team-overrides
 ```
+
+To use a different registry for one run, point at it directly with `--registry <URL>` (and `--registry-ref` / `--registry-section`), or change `use`.
 
 ## Versioning registries
 

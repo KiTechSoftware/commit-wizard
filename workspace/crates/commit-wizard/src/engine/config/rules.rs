@@ -1,3 +1,5 @@
+//! The rules table and `@rules.<name>` substitution.
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
@@ -18,6 +20,23 @@ impl Default for RulesConfig {
 }
 
 impl RulesConfig {
+    /// A rules file may hold the rules at the top level or inside a single `[rules]`
+    /// table, as a project config does; both give the same rules.
+    pub fn unwrapped(self) -> Self {
+        match self.0 {
+            Value::Table(mut table)
+                if table.len() == 1 && table.get("rules").is_some_and(Value::is_table) =>
+            {
+                Self(
+                    table
+                        .remove("rules")
+                        .unwrap_or(Value::Table(Default::default())),
+                )
+            }
+            other => Self(other),
+        }
+    }
+
     pub fn get(&self, path: &str) -> Option<&Value> {
         let mut current = &self.0;
 
@@ -28,11 +47,12 @@ impl RulesConfig {
         Some(current)
     }
     pub fn from_toml_str(input: &str) -> Result<Self> {
-        toml::from_str(input).map_err(|err| {
-            ErrorCode::ConfigInvalid
-                .error()
-                .with_context("error", err.to_string())
-        })
+        Self::from_str_as(super::ConfigFormat::Toml, input)
+    }
+
+    /// Parse a document written in the given format.
+    pub fn from_str_as(format: super::ConfigFormat, input: &str) -> Result<Self> {
+        format.parse(input)
     }
     pub fn resolve_ref(&self, reference: &str) -> Option<&Value> {
         let path = reference.strip_prefix("@rules.")?;

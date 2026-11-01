@@ -1,3 +1,5 @@
+//! Built-in defaults.
+
 pub mod config;
 pub mod policy;
 

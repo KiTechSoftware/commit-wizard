@@ -1,3 +1,5 @@
+//! Built-in default values for the commit types, branches, and changelog sections.
+
 use std::collections::{BTreeMap, HashMap};
 
 use crate::engine::constants::{
@@ -228,6 +230,8 @@ pub fn default_commit_config() -> CommitConfig {
 pub fn default_branch_naming_config() -> BranchNamingConfig {
     BranchNamingConfig {
         pattern: Some(BRANCH_NAMING_PATTERN.to_string()),
+        require_type: None,
+        require_ticket: None,
     }
 }
 
@@ -309,6 +313,7 @@ pub fn default_changelog_config() -> ChangelogConfig {
         header: None,
         layout: Some(default_changelog_layout_config()),
         sections: None,
+        links: None,
     }
 }
 
@@ -397,6 +402,7 @@ pub fn standard_base_config() -> crate::engine::config::BaseConfig {
         ai: Some(default_ai_config()),
         registry: None,
         registries: None,
+        global: None,
     }
 }
 
@@ -414,5 +420,6 @@ pub fn full_base_config() -> crate::engine::config::BaseConfig {
         ai: Some(default_ai_config()),
         registry: Some(default_registry_config()),
         registries: Some(default_registries()),
+        global: None,
     }
 }

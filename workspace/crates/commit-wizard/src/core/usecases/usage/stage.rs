@@ -1,3 +1,5 @@
+//! `cw add`: stages and unstages files from paths, `--all`, or a picker on a terminal.
+
 use std::{path::PathBuf, time::Instant};
 
 use crate::{
@@ -19,10 +21,45 @@ pub fn run(
     all: bool,
     exclude_staged: bool,
     unstage: bool,
+    tracked: bool,
 ) -> CoreResult<()> {
     let ui = ctx.ui();
     let git = ctx.git();
     let start = Instant::now();
+
+    // ---------- Fast path: --tracked (like `git add -u`) ----------
+    if tracked {
+        if !paths.is_empty() || all || unstage {
+            return Err(ErrorCode::InvalidInput.error().with_context(
+                "reason",
+                "--tracked stages every change to tracked files; it cannot be combined with paths, --all or --unstage",
+            ));
+        }
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let meta = ui
+            .new_output_meta()
+            .with_duration_ms(duration_ms)
+            .with_timestamp(chrono::Utc::now().to_string())
+            .with_command("stage".to_string())
+            .with_dry_run(ctx.dry_run());
+
+        if ctx.dry_run() {
+            let content = ui
+                .new_output_content()
+                .title("Stage Preview")
+                .subtitle("Dry run: would stage changes to tracked files")
+                .data("tracked", "true");
+            return ui.print_with_meta(&content, Some(&meta), true);
+        }
+
+        git.stage_tracked()?;
+        let content = ui
+            .new_output_content()
+            .title("Tracked Files Staged")
+            .subtitle("Git index updated successfully")
+            .data("tracked", "true");
+        return ui.print_with_meta(&content, Some(&meta), true);
+    }
 
     let path_strings = paths
         .iter()

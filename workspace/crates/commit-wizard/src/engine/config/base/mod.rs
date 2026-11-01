@@ -1,3 +1,5 @@
+//! `BaseConfig`, the typed form of every config file, and the merge that combines layers.
+
 pub mod types;
 pub use types::*;
 
@@ -37,6 +39,8 @@ pub struct BaseConfig {
     pub registry: Option<RegistryConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registries: Option<HashMap<String, NamedRegistryConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub global: Option<GlobalConfig>,
 }
 
 impl BaseConfig {
@@ -54,6 +58,7 @@ impl BaseConfig {
             ai: None,
             registry: None,
             registries: None,
+            global: None,
         }
     }
 
@@ -88,6 +93,7 @@ impl BaseConfig {
             ai: self.ai.or(lower.ai),
             registry: merge_registry_config(self.registry, lower.registry),
             registries: self.registries.or(lower.registries),
+            global: self.global.or(lower.global),
         }
     }
 
@@ -247,6 +253,14 @@ impl BaseConfig {
             .and_then(|t| t.pattern.clone())
     }
 
+    pub fn commit_ticket_header_format(&self) -> String {
+        self.commit
+            .as_ref()
+            .and_then(|c| c.ticket.as_ref())
+            .and_then(|t| t.header_format.clone())
+            .unwrap_or_else(|| defaults::COMMIT_TICKET_HEADER_FORMAT.to_string())
+    }
+
     pub fn commit_ticket_source(&self) -> crate::engine::models::policy::enforcement::TicketSource {
         self.commit
             .as_ref()
@@ -303,6 +317,24 @@ impl BaseConfig {
             .and_then(|b| b.naming.as_ref())
             .and_then(|n| n.pattern.clone())
             .unwrap_or_else(|| defaults::BRANCH_NAMING_PATTERN.to_string())
+    }
+
+    /// Whether `cw branch new` must be given a type.
+    pub fn branch_naming_require_type(&self) -> bool {
+        self.branch
+            .as_ref()
+            .and_then(|b| b.naming.as_ref())
+            .and_then(|n| n.require_type)
+            .unwrap_or(false)
+    }
+
+    /// Whether `cw branch new` must be given a ticket.
+    pub fn branch_naming_require_ticket(&self) -> bool {
+        self.branch
+            .as_ref()
+            .and_then(|b| b.naming.as_ref())
+            .and_then(|n| n.require_ticket)
+            .unwrap_or(false)
     }
 
     pub fn branch_naming_enforce(&self) -> bool {
@@ -513,6 +545,23 @@ impl BaseConfig {
             .unwrap_or_default()
     }
 
+    /// Whether the changelog links entries and releases to the repository (default: yes).
+    pub fn changelog_links_enabled(&self) -> bool {
+        self.changelog
+            .as_ref()
+            .and_then(|c| c.links.as_ref())
+            .and_then(|l| l.enabled)
+            .unwrap_or(true)
+    }
+
+    /// Repository web address to link to, instead of the one from the `origin` remote.
+    pub fn changelog_links_url(&self) -> Option<String> {
+        self.changelog
+            .as_ref()
+            .and_then(|c| c.links.as_ref())
+            .and_then(|l| l.url.clone())
+    }
+
     pub fn changelog_unreleased_label(&self) -> String {
         self.changelog
             .as_ref()
@@ -693,6 +742,15 @@ impl BaseConfig {
             .as_ref()
             .and_then(|r| r.use_registry.clone())
             .filter(|s| !s.trim().is_empty())
+    }
+
+    /// Whether the global config sits under this project's config as its
+    /// lowest layer (`[global] inherit = true`). Default: no.
+    pub fn global_inherit(&self) -> bool {
+        self.global
+            .as_ref()
+            .and_then(|g| g.inherit)
+            .unwrap_or(false)
     }
 
     /// Whether a failure to load the active registry must stop the command.

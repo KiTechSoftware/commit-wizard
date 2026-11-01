@@ -1,14 +1,18 @@
+//! Builds the files `cw init` writes for a project, user, rules or registry setup.
+
 use std::path::{Path, PathBuf};
 
 use crate::engine::{
-    config::{ProjectConfig, RulesConfig, StandardConfig},
-    constants::{CONFIG_FILE_NAME, RULES_FILE_NAME, app_config_dir},
+    config::{ConfigFormat, ProjectConfig, RulesConfig, StandardConfig},
+    constants::{CONFIG_FILE_NAME, CONFIG_STEM, RULES_FILE_NAME, RULES_STEM, app_config_dir},
     error::{ErrorCode, Result},
 };
 
 pub enum ConfigOption {
     Project,
     Global,
+    /// Only the user-level rules file, leaving the config alone.
+    Rules,
     Registry,
 }
 
@@ -21,7 +25,8 @@ pub enum ConfigSpec {
 pub struct RegistryOptions {
     pub name: String,
     pub git_init: bool,
-    pub sections: bool,
+    /// Names of the section folders to create; empty for a single-source registry.
+    pub sections: Vec<String>,
 }
 
 impl Default for RegistryOptions {
@@ -29,7 +34,7 @@ impl Default for RegistryOptions {
         Self {
             name: "registry".to_string(),
             git_init: false,
-            sections: false,
+            sections: Vec::new(),
         }
     }
 }
@@ -44,6 +49,11 @@ pub struct ConfigContext {
     pub hidden: bool,
     pub with_rules: bool,
     pub registry_options: RegistryOptions,
+    /// Format for files init chooses the name of (the global config and rules).
+    /// Project files are rendered in the format their path's extension implies.
+    pub file_format: ConfigFormat,
+    /// Answers from the guided wizard, applied on top of the profile.
+    pub answers: Option<super::wizard::WizardAnswers>,
 }
 
 pub struct ConfigPayload {
@@ -55,7 +65,7 @@ pub struct ConfigPayload {
 pub struct InitOutput {
     /// The primary file path that was written (or would be written on dry-run).
     pub path: PathBuf,
-    /// TOML content that would be written; only populated when dry_run=true.
+    /// Content that would be written, in the target file's format; only populated when dry_run=true.
     pub dry_run_content: Option<String>,
 }
 
@@ -68,6 +78,9 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
                 ConfigSpec::Standard => ProjectConfig::standard(),
                 ConfigSpec::Full => ProjectConfig::full(),
             };
+            if let Some(answers) = &context.answers {
+                input.inner.config = answers.apply(&input.inner.config)?;
+            }
             if context.with_rules {
                 input.inner.rules = Some(rules);
             }
@@ -75,12 +88,7 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
             let config_path = &context.output_path;
 
             if context.dry_run {
-                let content = toml::to_string_pretty(&input).map_err(|err| {
-                    ErrorCode::SerializationFailure
-                        .error()
-                        .with_context("path", config_path.display().to_string())
-                        .with_context("error", err.to_string())
-                })?;
+                let content = ConfigFormat::from_path(config_path).render(&input)?;
                 return Ok(InitOutput {
                     path: config_path.clone(),
                     dry_run_content: Some(content),
@@ -100,24 +108,27 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
                 ConfigSpec::Full => StandardConfig::full(),
             };
 
+            let input = match &context.answers {
+                Some(answers) => StandardConfig {
+                    inner: answers.apply(&input.inner)?,
+                    ..input
+                },
+                None => input,
+            };
+
             let root = app_config_dir()?;
-            let config_path = root.join(CONFIG_FILE_NAME);
+            let extension = context.file_format.extension();
+            let config_path = root.join(format!("{CONFIG_STEM}.{extension}"));
 
             let dry_run_content = if context.dry_run {
-                let content = toml::to_string_pretty(&input).map_err(|err| {
-                    ErrorCode::SerializationFailure
-                        .error()
-                        .with_context("path", config_path.display().to_string())
-                        .with_context("error", err.to_string())
-                })?;
-                Some(content)
+                Some(context.file_format.render(&input)?)
             } else {
                 save_standard(&config_path, &input, context.force, context.dry_run)?;
                 None
             };
 
             if context.with_rules {
-                let rules_path = root.join(RULES_FILE_NAME);
+                let rules_path = root.join(format!("{RULES_STEM}.{extension}"));
                 if !context.dry_run {
                     save_rules(&rules_path, &rules, context.force, context.dry_run)?;
                 }
@@ -128,12 +139,27 @@ pub fn init_config(context: &ConfigContext) -> Result<InitOutput> {
                 dry_run_content,
             })
         }
+        ConfigOption::Rules => {
+            let path =
+                app_config_dir()?.join(format!("{RULES_STEM}.{}", context.file_format.extension()));
+            if context.dry_run {
+                return Ok(InitOutput {
+                    dry_run_content: Some(context.file_format.render(&rules)?),
+                    path,
+                });
+            }
+            save_rules(&path, &rules, context.force, context.dry_run)?;
+            Ok(InitOutput {
+                path,
+                dry_run_content: None,
+            })
+        }
         ConfigOption::Registry => init_registry(context),
     }
 }
 
 pub fn save_project(path: &Path, input: &ProjectConfig, force: bool, dry_run: bool) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
 pub fn save_standard(
@@ -142,19 +168,15 @@ pub fn save_standard(
     force: bool,
     dry_run: bool,
 ) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
 pub fn save_rules(path: &Path, input: &RulesConfig, force: bool, dry_run: bool) -> Result<()> {
-    save_toml(path, input, force, dry_run)
+    save_doc(path, input, force, dry_run)
 }
 
-fn save_toml<T: serde::Serialize>(
-    path: &Path,
-    input: &T,
-    force: bool,
-    dry_run: bool,
-) -> Result<()> {
+/// Write a document in the format its file extension implies.
+fn save_doc<T: serde::Serialize>(path: &Path, input: &T, force: bool, dry_run: bool) -> Result<()> {
     if path.exists() && !force {
         return Err(ErrorCode::ConfigInvalid
             .error()
@@ -162,12 +184,9 @@ fn save_toml<T: serde::Serialize>(
             .with_context("reason", "file already exists; use --force to overwrite"));
     }
 
-    let content = toml::to_string_pretty(input).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("path", path.display().to_string())
-            .with_context("error", err.to_string())
-    })?;
+    let content = ConfigFormat::from_path(path)
+        .render(input)
+        .map_err(|err| err.with_context("path", path.display().to_string()))?;
 
     if dry_run {
         return Ok(());
@@ -179,7 +198,7 @@ fn save_toml<T: serde::Serialize>(
         std::fs::create_dir_all(parent)?;
     }
 
-    std::fs::write(path, &content)?;
+    crate::engine::fs::write_text(path, &content)?;
     Ok(())
 }
 
@@ -201,7 +220,7 @@ fn save_text(path: &Path, content: &str, force: bool, dry_run: bool) -> Result<(
         std::fs::create_dir_all(parent)?;
     }
 
-    std::fs::write(path, content)?;
+    crate::engine::fs::write_text(path, content)?;
     Ok(())
 }
 
@@ -217,13 +236,15 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
     let config_path = root.join(CONFIG_FILE_NAME);
     save_standard(&config_path, &config, context.force, context.dry_run)?;
 
-    let rules_path = root.join(RULES_FILE_NAME);
-    save_rules(
-        &rules_path,
-        &RulesConfig::default(),
-        context.force,
-        context.dry_run,
-    )?;
+    if context.with_rules {
+        let rules_path = root.join(RULES_FILE_NAME);
+        save_rules(
+            &rules_path,
+            &RulesConfig::default(),
+            context.force,
+            context.dry_run,
+        )?;
+    }
 
     let readme_path = root.join("README.md");
     save_text(
@@ -233,8 +254,8 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
         context.dry_run,
     )?;
 
-    if context.registry_options.sections {
-        for section in ["standard", "team1"] {
+    {
+        for section in &context.registry_options.sections {
             let section_dir = root.join(section);
 
             if !context.dry_run {
@@ -248,12 +269,14 @@ fn init_registry(context: &ConfigContext) -> Result<InitOutput> {
                 context.dry_run,
             )?;
 
-            save_rules(
-                &section_dir.join(RULES_FILE_NAME),
-                &RulesConfig::default(),
-                context.force,
-                context.dry_run,
-            )?;
+            if context.with_rules {
+                save_rules(
+                    &section_dir.join(RULES_FILE_NAME),
+                    &RulesConfig::default(),
+                    context.force,
+                    context.dry_run,
+                )?;
+            }
         }
     }
 
@@ -300,7 +323,7 @@ fn registry_readme(context: &ConfigContext) -> String {
     s.push_str("- `ref` may be a branch, tag, or commit SHA.\n");
     s.push_str("- If `section` is set, commit-wizard loads `<section>/config.toml` and `<section>/rules.toml`.\n");
     s.push_str("- If `section` is not set, commit-wizard loads `config.toml` and `rules.toml` from the repository root.\n");
-    s.push_str("- Missing files are fatal.\n");
+    s.push_str("- A missing `config.toml` is fatal; `rules.toml` is optional.\n");
     s.push_str("- Invalid TOML or schema violations are fatal.\n");
     s.push_str("- No silent fallback is allowed.\n\n");
 
@@ -315,8 +338,17 @@ fn registry_readme(context: &ConfigContext) -> String {
     s.push_str("- State is advisory only and not authoritative.\n");
     s.push_str("- Registries are trusted input; commit-wizard reads files only and must not execute code from the registry.\n");
 
-    if context.registry_options.sections {
-        s.push_str("\nThis scaffold includes example sections: `standard/` and `team1/`.\n");
+    if !context.registry_options.sections.is_empty() {
+        let names: Vec<String> = context
+            .registry_options
+            .sections
+            .iter()
+            .map(|section| format!("`{section}/`"))
+            .collect();
+        s.push_str(&format!(
+            "\nThis scaffold includes the sections: {}.\n",
+            names.join(", ")
+        ));
     }
 
     s

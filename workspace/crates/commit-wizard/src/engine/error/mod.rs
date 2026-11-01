@@ -1,3 +1,5 @@
+//! The engine's error type: an `ErrorCode` plus the context entries printed beneath it.
+
 mod code;
 mod kind;
 

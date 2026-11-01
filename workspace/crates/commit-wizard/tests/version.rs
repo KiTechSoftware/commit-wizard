@@ -121,3 +121,43 @@ fn prerelease_is_promoted_by_bump_and_tag() {
     repo.commit("fix: later");
     assert_eq!(repo.next_tag(), "v1.1.1");
 }
+
+#[test]
+fn suffix_may_start_with_a_hyphen() {
+    let repo = Repo::new();
+    released(&repo, "1.0.0");
+    repo.commit("feat: next");
+
+    let out = repo.tag(&["--suffix", "-rc1"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        repo.tags().contains(&"v1.1.0-rc1".to_string()),
+        "{:?}",
+        repo.tags()
+    );
+}
+
+#[test]
+fn branch_flag_tags_that_branch_and_versions_from_its_history() {
+    let repo = Repo::new();
+    released(&repo, "1.0.0");
+    repo.git(&["checkout", "-q", "-b", "release"]);
+    repo.commit("feat: only on release");
+    repo.git(&["checkout", "-q", "main"]);
+    repo.commit("fix: only on main");
+
+    let out = repo.tag(&["--branch", "release"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        repo.tags().contains(&"v1.1.0".to_string()),
+        "{:?}",
+        repo.tags()
+    );
+    assert_eq!(
+        repo.git(&["rev-parse", "v1.1.0^{commit}"]).trim(),
+        repo.git(&["rev-parse", "release"]).trim()
+    );
+
+    let missing = repo.tag(&["--branch", "no-such-branch"]);
+    assert!(!missing.status.success());
+}

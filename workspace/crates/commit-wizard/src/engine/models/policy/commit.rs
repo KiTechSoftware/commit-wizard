@@ -1,3 +1,5 @@
+//! Policy model for commits: types, scopes, subject length, tickets, breaking changes and header format.
+
 use crate::engine::{
     constants::DEFAULT_COMMIT_BUMP,
     models::{
@@ -46,6 +48,8 @@ pub struct TicketPolicy {
     pub required: bool,
     pub regex: Option<String>,
     pub source: TicketSource,
+    /// How the ticket is written at the start of the subject; `{ticket}` stands for it.
+    pub header_format: String,
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +121,7 @@ impl Default for CommitModel {
                 required: false,
                 regex: None,
                 source: TicketSource::Disabled,
+                header_format: crate::engine::constants::COMMIT_TICKET_HEADER_FORMAT.to_string(),
             },
             header_format: HeaderFormatPolicy {
                 require_scope: false,
@@ -179,6 +184,7 @@ impl CommitModel {
                 required: base.commit_ticket_required(),
                 regex: base.commit_ticket_pattern(),
                 source: base.commit_ticket_source(),
+                header_format: base.commit_ticket_header_format(),
             },
 
             header_format: HeaderFormatPolicy {

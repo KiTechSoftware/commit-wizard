@@ -11,15 +11,18 @@
 //! - [`resolver`]: Configuration resolution logic
 //! - [`rules`]: Custom commit rules
 //! - [`registry`]: Registry configuration
-//! - [`env`]: Environment variable handling
+//! - [`env`](mod@env): Environment variable handling
 
 pub mod base;
 pub mod env;
+pub mod format;
+pub mod lint;
 pub mod registry;
 pub mod resolver;
 pub mod rules;
 pub mod schema;
 
 pub use base::BaseConfig;
+pub use format::ConfigFormat;
 pub use rules::RulesConfig;
 pub use schema::*;

@@ -5,6 +5,8 @@
 //!
 //! The main entry point is the [`Git`] struct which implements all Git operation traits.
 
+mod branches;
+
 use std::{
     collections::{BTreeMap, HashMap},
     io::Write as _,
@@ -24,6 +26,28 @@ use crate::engine::{
         policy::versioning::Version,
     },
 };
+
+/// The stretch of history a rewrite would touch.
+#[derive(Debug, Clone)]
+pub struct RewriteSpan {
+    /// Commit hashes from the oldest one to rewrite up to HEAD.
+    pub chain: Vec<String>,
+    /// Those among them that carry a GPG signature, which a rewrite invalidates.
+    pub signed: Vec<String>,
+}
+
+/// What `rewrite_messages` did.
+#[derive(Debug, Clone)]
+pub struct RewriteReport {
+    pub branch_ref: String,
+    pub old_tip: String,
+    pub new_tip: String,
+    /// A ref holding the old tip, for undoing the rewrite.
+    pub backup_ref: String,
+    pub reworded: usize,
+    /// Commits that got a new hash (the reworded ones and everything after).
+    pub rehashed: usize,
+}
 
 /// A tag boundary with all commits that fall in the range `(prev_tag, tag]`.
 /// The `tag` field is either a version string or `"Unreleased"` for commits
@@ -157,14 +181,19 @@ impl Git {
     }
 
     pub fn latest_tag(&self) -> Result<Option<String>, Error> {
+        self.latest_tag_from("HEAD")
+    }
+
+    /// The newest version tag reachable from `rev`.
+    pub fn latest_tag_from(&self, rev: &str) -> Result<Option<String>, Error> {
         let repo = self.repo()?;
         let tags = repo
             .tag_names(None)
             .map_err(|err| self.git2_error("tag_names", err))?;
 
-        // Only tags reachable from HEAD count, so tags from other branches
+        // Only tags reachable from `rev` count, so tags from other branches
         // never become the base of a version bump.
-        let Some(head) = repo.head().ok().and_then(|head| head.target()) else {
+        let Ok(head) = self.revparse_oid(&repo, rev) else {
             return Ok(None);
         };
 
@@ -205,6 +234,328 @@ impl Git {
         Ok(latest.map(|(name, _)| name))
     }
 
+    /// URL of a remote, if it exists.
+    pub fn remote_url(&self, name: &str) -> Option<String> {
+        let repo = self.repo().ok()?;
+        let remote = repo.find_remote(name).ok()?;
+        remote.url().map(str::to_string)
+    }
+
+    // -- history rewriting (cw fix) -----------------------------------------
+
+    /// The branch HEAD is on, as a full ref name such as `refs/heads/main`.
+    pub fn head_branch_ref(&self) -> Result<String, Error> {
+        let repo = self.repo()?;
+        let head = repo.head().map_err(|err| self.git2_error("head", err))?;
+        if !head.is_branch() {
+            return Err(ErrorCode::HistoryRewriteUnsupported
+                .error()
+                .with_context("reason", "HEAD is detached; check out a branch first"));
+        }
+        head.name().map(str::to_string).ok_or_else(|| {
+            ErrorCode::HistoryRewriteUnsupported
+                .error()
+                .with_context("reason", "the branch name is not valid UTF-8")
+        })
+    }
+
+    /// Whether a merge, rebase, cherry-pick or similar is half-done.
+    pub fn operation_in_progress(&self) -> Result<bool, Error> {
+        let repo = self.repo()?;
+        Ok(repo.state() != git2::RepositoryState::Clean)
+    }
+
+    /// Commits reachable from `to` that no remote branch contains: the ones
+    /// nobody else can have, and so the ones that are safe to rewrite.
+    pub fn unpublished_commits(&self, to: &str) -> Result<Vec<CommitSummary>, Error> {
+        let repo = self.repo()?;
+        let to_oid = self.revparse_oid(&repo, to)?;
+        let mut revwalk = repo
+            .revwalk()
+            .map_err(|err| self.git2_error("revwalk", err))?;
+        revwalk
+            .push(to_oid)
+            .map_err(|err| self.git2_error("revwalk.push", err))?;
+        for remote in self.remote_tips(&repo)? {
+            let _ = revwalk.hide(remote);
+        }
+        revwalk
+            .set_sorting(Sort::TOPOLOGICAL | Sort::TIME)
+            .map_err(|err| self.git2_error("revwalk.set_sorting", err))?;
+
+        let mut out = Vec::new();
+        for oid in revwalk {
+            let oid = oid.map_err(|err| self.git2_error("revwalk.next", err))?;
+            let commit = repo
+                .find_commit(oid)
+                .map_err(|err| self.git2_error("find_commit", err))?;
+            out.push(CommitSummary {
+                hash: commit.id().to_string(),
+                summary: commit.summary().unwrap_or("").to_string(),
+                full_message: commit.message().map(|m| m.to_string()),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The commits among `hashes` that some remote branch already contains.
+    pub fn published_among(&self, hashes: &[String]) -> Result<Vec<String>, Error> {
+        let repo = self.repo()?;
+        let tips = self.remote_tips(&repo)?;
+        let mut published = Vec::new();
+        for hash in hashes {
+            let oid = Oid::from_str(hash).map_err(|err| self.git2_error("parse_oid", err))?;
+            let contained = tips
+                .iter()
+                .any(|tip| *tip == oid || repo.graph_descendant_of(*tip, oid).unwrap_or(false));
+            if contained {
+                published.push(hash.clone());
+            }
+        }
+        Ok(published)
+    }
+
+    fn remote_tips(&self, repo: &Repository) -> Result<Vec<Oid>, Error> {
+        let mut tips = Vec::new();
+        let references = repo
+            .references_glob("refs/remotes/*")
+            .map_err(|err| self.git2_error("references_glob", err))?;
+        for reference in references.flatten() {
+            if let Ok(resolved) = reference.resolve()
+                && let Some(oid) = resolved.target()
+            {
+                tips.push(oid);
+            }
+        }
+        Ok(tips)
+    }
+
+    /// The commits `rewrite_messages` would rewrite for `targets`: every commit
+    /// from the oldest target up to HEAD along the first-parent chain, which is
+    /// the whole stretch that gets new hashes. History that is not a straight
+    /// line over that stretch is refused.
+    pub fn rewrite_span(&self, targets: &[String]) -> Result<RewriteSpan, Error> {
+        let repo = self.repo()?;
+        self.span(&repo, targets)
+    }
+
+    fn span(&self, repo: &Repository, targets: &[String]) -> Result<RewriteSpan, Error> {
+        let mut remaining: std::collections::HashSet<Oid> = targets
+            .iter()
+            .map(|hash| Oid::from_str(hash))
+            .collect::<Result<_, _>>()
+            .map_err(|err| self.git2_error("parse_oid", err))?;
+        let mut current = repo
+            .head()
+            .and_then(|head| head.peel_to_commit())
+            .map_err(|err| self.git2_error("head", err))?;
+
+        let mut newest_first = Vec::new();
+        let mut signed = Vec::new();
+        loop {
+            if current.parent_count() > 1 {
+                return Err(ErrorCode::HistoryRewriteUnsupported.error().with_context(
+                    "reason",
+                    format!(
+                        "merge commit {} lies in the range; only straight-line history can be rewritten",
+                        &current.id().to_string()[..8]
+                    ),
+                ));
+            }
+            remaining.remove(&current.id());
+            if current.header_field_bytes("gpgsig").is_ok() {
+                signed.push(current.id().to_string());
+            }
+            newest_first.push(current.id().to_string());
+            if remaining.is_empty() {
+                break;
+            }
+            current = match current.parent(0) {
+                Ok(parent) => parent,
+                Err(_) => {
+                    return Err(ErrorCode::HistoryRewriteUnsupported.error().with_context(
+                        "reason",
+                        "a commit to fix is not on the first-parent history of HEAD",
+                    ));
+                }
+            };
+        }
+
+        newest_first.reverse();
+        Ok(RewriteSpan {
+            chain: newest_first,
+            signed,
+        })
+    }
+
+    /// Rewrite the messages of commits on the current branch.
+    ///
+    /// `messages` maps a commit hash to its new full message. Each commit from
+    /// the oldest one named up to HEAD is recreated with the same tree, author
+    /// and committer, so the files are identical and only messages (and the
+    /// hashes that follow from them) change. Before the branch is moved, the
+    /// new tip is checked to have exactly the old tip's tree, and the old tip
+    /// is saved under `refs/cw/fix-backup/` so the change can be undone.
+    pub fn rewrite_messages(
+        &self,
+        messages: &std::collections::HashMap<String, String>,
+    ) -> Result<RewriteReport, Error> {
+        let repo = self.repo()?;
+        let branch_ref = self.head_branch_ref()?;
+        let targets: Vec<String> = messages.keys().cloned().collect();
+        let span = self.span(&repo, &targets)?;
+
+        let old_tip = repo
+            .head()
+            .and_then(|head| head.peel_to_commit())
+            .map_err(|err| self.git2_error("head", err))?;
+
+        let mut mapped: std::collections::HashMap<Oid, Oid> = std::collections::HashMap::new();
+        for hash in &span.chain {
+            let oid = Oid::from_str(hash).map_err(|err| self.git2_error("parse_oid", err))?;
+            let original = repo
+                .find_commit(oid)
+                .map_err(|err| self.git2_error("find_commit", err))?;
+
+            let mut message = match messages.get(hash) {
+                Some(new) => new.clone(),
+                None => original
+                    .message()
+                    .ok_or_else(|| {
+                        ErrorCode::HistoryRewriteUnsupported.error().with_context(
+                            "reason",
+                            format!(
+                                "commit {} has a message that is not valid UTF-8",
+                                &hash[..8]
+                            ),
+                        )
+                    })?
+                    .to_string(),
+            };
+            if !message.ends_with('\n') {
+                message.push('\n');
+            }
+
+            let parents: Vec<git2::Commit> = original
+                .parent_ids()
+                .map(|parent| {
+                    let parent = mapped.get(&parent).copied().unwrap_or(parent);
+                    repo.find_commit(parent)
+                })
+                .collect::<Result<_, _>>()
+                .map_err(|err| self.git2_error("find_parent", err))?;
+            let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+
+            let tree = original
+                .tree()
+                .map_err(|err| self.git2_error("tree", err))?;
+            let rewritten = repo
+                .commit(
+                    None,
+                    &original.author(),
+                    &original.committer(),
+                    &message,
+                    &tree,
+                    &parent_refs,
+                )
+                .map_err(|err| self.git2_error("commit", err))?;
+            mapped.insert(oid, rewritten);
+        }
+
+        let new_tip_oid = *mapped.get(&old_tip.id()).ok_or_else(|| {
+            ErrorCode::HistoryRewriteUnsupported
+                .error()
+                .with_context("reason", "the branch tip was not part of the rewrite")
+        })?;
+        let new_tip = repo
+            .find_commit(new_tip_oid)
+            .map_err(|err| self.git2_error("find_commit", err))?;
+        if new_tip.tree_id() != old_tip.tree_id() {
+            return Err(ErrorCode::HistoryRewriteUnsupported.error().with_context(
+                "reason",
+                "internal check failed: the files would have changed; nothing was rewritten",
+            ));
+        }
+
+        let branch_short = branch_ref.trim_start_matches("refs/heads/");
+        let backup_ref = format!(
+            "refs/cw/fix-backup/{branch_short}/{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        );
+        repo.reference(
+            &backup_ref,
+            old_tip.id(),
+            true,
+            "cw fix: backup before rewriting",
+        )
+        .map_err(|err| self.git2_error("backup_ref", err))?;
+        repo.reference(
+            &branch_ref,
+            new_tip_oid,
+            true,
+            &format!("cw fix: reworded {} commit(s)", messages.len()),
+        )
+        .map_err(|err| self.git2_error("update_branch", err))?;
+
+        Ok(RewriteReport {
+            branch_ref,
+            old_tip: old_tip.id().to_string(),
+            new_tip: new_tip_oid.to_string(),
+            backup_ref,
+            reworded: messages.len(),
+            rehashed: span.chain.len(),
+        })
+    }
+
+    /// Tags whose commit is `rev` or one of its ancestors, in no particular order.
+    pub fn tags_reachable_from(&self, rev: &str) -> Result<Vec<String>, Error> {
+        let repo = self.repo()?;
+        let head = self.revparse_oid(&repo, rev)?;
+        let tags = repo
+            .tag_names(None)
+            .map_err(|err| self.git2_error("tag_names", err))?;
+
+        let mut out = Vec::new();
+        for tag_name in tags.iter().flatten() {
+            let Ok(reference) = repo.find_reference(&format!("refs/tags/{tag_name}")) else {
+                continue;
+            };
+            let Ok(obj) = reference.peel(ObjectType::Commit) else {
+                continue;
+            };
+            let Some(commit) = obj.as_commit() else {
+                continue;
+            };
+            let id = commit.id();
+            if id == head || repo.graph_descendant_of(head, id).unwrap_or(false) {
+                out.push(tag_name.to_string());
+            }
+        }
+        Ok(out)
+    }
+
+    /// When a tag was made, as Unix seconds: the tagger date of an annotated
+    /// tag, or the commit time for a lightweight one.
+    pub fn tag_timestamp(&self, tag: &str) -> Result<Option<i64>, Error> {
+        let repo = self.repo()?;
+        let Ok(reference) = repo.find_reference(&format!("refs/tags/{tag}")) else {
+            return Ok(None);
+        };
+        if let Some(oid) = reference.target()
+            && let Ok(annotated) = repo.find_tag(oid)
+            && let Some(tagger) = annotated.tagger()
+        {
+            return Ok(Some(tagger.when().seconds()));
+        }
+        let Ok(obj) = reference.peel(ObjectType::Commit) else {
+            return Ok(None);
+        };
+        Ok(obj.as_commit().map(|commit| commit.time().seconds()))
+    }
+
     pub fn tag_date(&self, tag: &str) -> Result<Option<String>, Error> {
         let repo = self.repo()?;
         let reference = match repo.find_reference(&format!("refs/tags/{tag}")) {
@@ -230,10 +581,15 @@ impl Git {
     }
 
     pub fn create_tag(&self, name: &str, message: &str) -> Result<(), Error> {
+        self.create_tag_at(name, message, "HEAD")
+    }
+
+    /// Creates an annotated tag on `rev`.
+    pub fn create_tag_at(&self, name: &str, message: &str, rev: &str) -> Result<(), Error> {
         let repo = self.repo()?;
         let obj = repo
-            .revparse_single("HEAD")
-            .map_err(|err| self.git2_error("revparse_single HEAD", err))?;
+            .revparse_single(rev)
+            .map_err(|err| self.git2_error("revparse_single", err))?;
         let sig = repo
             .signature()
             .map_err(|err| self.git2_error("signature", err))?;
@@ -250,8 +606,13 @@ impl Git {
     }
 
     pub fn create_signed_tag(&self, name: &str, message: &str) -> Result<(), Error> {
+        self.create_signed_tag_at(name, message, "HEAD")
+    }
+
+    /// Creates a GPG-signed tag on `rev`.
+    pub fn create_signed_tag_at(&self, name: &str, message: &str, rev: &str) -> Result<(), Error> {
         let output = self
-            .run_dynamic(["tag", "-s", "-m", message, name])
+            .run_dynamic(["tag", "-s", "-m", message, name, rev])
             .ok_or_else(|| {
                 ErrorCode::ProcessFailure
                     .error()
@@ -555,6 +916,20 @@ impl Git {
         Ok(())
     }
 
+    /// Stages changes to files git already tracks, including deletions, and leaves
+    /// untracked files alone (`git add -u`).
+    pub fn stage_tracked(&self) -> Result<(), Error> {
+        let repo = self.repo()?;
+        let mut index = repo.index().map_err(|err| self.git2_error("index", err))?;
+        index
+            .update_all(["*"].iter(), None)
+            .map_err(|err| self.git2_error("index.update_all", err))?;
+        index
+            .write()
+            .map_err(|err| self.git2_error("index.write", err))?;
+        Ok(())
+    }
+
     pub fn unstage_all(&self) -> Result<(), Error> {
         let repo = self.repo()?;
         let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
@@ -806,6 +1181,17 @@ impl Git {
 
     pub fn current_branch(&self) -> Result<String, Error> {
         let repo = self.repo()?;
+        // Before the first commit HEAD names a branch that does not exist yet.
+        if let Err(err) = repo.head()
+            && err.code() == git2::ErrorCode::UnbornBranch
+            && let Some(branch) = repo
+                .find_reference("HEAD")
+                .ok()
+                .and_then(|head| head.symbolic_target().map(str::to_string))
+                .and_then(|target| target.strip_prefix("refs/heads/").map(str::to_string))
+        {
+            return Ok(branch);
+        }
         let head = repo.head().map_err(|err| {
             ErrorCode::ProcessFailure
                 .error()

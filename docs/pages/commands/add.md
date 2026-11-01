@@ -28,13 +28,19 @@ cw add src/main.rs Cargo.toml
 cw add --all
 ```
 
+**Stage changes to tracked files only** (equivalent to `git add -u`: modified and deleted files, no new ones):
+
+```sh
+cw add -a
+```
+
 **Unstage files:**
 
 ```sh
 cw add --unstage src/main.rs
 ```
 
-**Stage only unstaged files** (skip files already in the index):
+**Pick from unstaged files only** (hides files already in the index; needs a terminal, since it opens the picker):
 
 ```sh
 cw add --exclude-staged
@@ -47,9 +53,10 @@ cw add --exclude-staged
 | `[PATH]...` | | Paths (files or directories) to stage |
 | `--path <PATH>` | | Additional path(s); may be repeated |
 | `--all` | `-A` | Stage all changes (`git add -A`) |
+| `--tracked` | `-a` | Stage changes to files git already tracks, deletions included; untracked files are left out. Cannot be combined with paths, `--all` or `--unstage` |
 | `--unstage` | | Unstage instead of staging |
 | `--exclude-staged` | | Exclude already-staged files from interactive selection |
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported, including `--dry-run` to preview what would be staged without actually staging it.
+All [global flags](global-flags.md) are supported, including `--dry-run` to preview what would be staged without actually staging it.

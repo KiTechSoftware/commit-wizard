@@ -8,6 +8,20 @@ Create a SemVer Git tag derived from Conventional Commit history. Optionally sig
 cw tag [OPTIONS]
 ```
 
+## Guided mode
+
+Run `cw tag` on a terminal and it walks you through the tag, asking only about what you did not already give as a flag:
+
+1. **Version** — "Use the next version, v1.4.0?" (worked out from the commits since the last tag). Answer no to type another one. If the proposed tag already exists because nothing new needs releasing, it goes straight to asking for a version.
+2. **Tag prefix** — pre-filled with the project's prefix (usually `v`); press Enter to keep it.
+3. **Prerelease label** — for example `rc` or `beta` to get `v1.4.0-rc.1`; leave empty for a normal release. Skipped when the version is already a prerelease.
+4. **Sign the tag with GPG?**
+5. **Push the tag after creating it?** — and, if yes, **which remote** (default `origin`).
+6. **Tag message** — pre-filled with `Release 1.4.0`.
+7. A final **"Create tag v1.4.0, and push it to origin?"**. Answering no cancels cleanly and creates nothing.
+
+Each flag answers its question up front, so `cw tag --set-version 2.0.0 --sign` asks only about the prefix, label, push and message. In scripts and CI, and with `--yes`, `--ci` or `--non-interactive`, there are no questions: the flags and the commit history decide everything, as before.
+
 ## Examples
 
 **Auto-calculate the next version and tag:**
@@ -60,12 +74,24 @@ cw tag --dry-run
 | --- | --- |
 | `--set-version <SEMVER>` / `--use-version` | Use this exact version instead of calculating from commits (e.g. `1.2.3` or `v1.2.3`) |
 | `--prefix <PREFIX>` | Tag prefix (default: `v` from `versioning.tag_prefix` in config) |
-| `--suffix <SUFFIX>` | Tag suffix appended after the version (e.g. `-rc1`) |
+| `--suffix <SUFFIX>` | Prerelease suffix (e.g. `-rc1`, `rc`, `beta.2`); see [Release candidates](#release-candidates) |
 | `--sign` | Create a GPG-signed annotated tag |
 | `--push` | Push the tag to the remote after creation |
 | `--remote <NAME>` | Remote to push to (default: `origin`) |
 | `--branch <BRANCH>` | Branch to tag (default: `HEAD`) |
 | `--message <MSG>` | Annotated tag message/body |
+
+## Release candidates
+
+`--suffix` makes the tag a prerelease of the version the commits call for:
+
+| You pass | Tag created (next release is 1.2.0) |
+| --- | --- |
+| `--suffix rc` | `v1.2.0-rc.1`, then `v1.2.0-rc.2` on the next run, counting up automatically |
+| `--suffix rc1` or `--suffix -rc1` | `v1.2.0-rc1`, exactly as written |
+| `--suffix beta.2` | `v1.2.0-beta.2`, exactly as written |
+
+Tag the final release by running `cw tag` without a suffix.
 
 ## Version calculation
 
@@ -90,4 +116,4 @@ Or via the environment variable `CW_VERSIONING_TAG_PREFIX`.
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--dry-run` prints the tag that would be created without writing to Git.
+All [global flags](global-flags.md) are supported. `--dry-run` prints the tag that would be created without writing to Git.

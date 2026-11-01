@@ -1,3 +1,5 @@
+//! Policy model for how strictly `cw check` enforces the commit rules.
+
 use crate::engine::models::{policy::enforcement::CommitEnforcementScope, runtime::ResolvedConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

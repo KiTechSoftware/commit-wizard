@@ -1,3 +1,5 @@
+//! The results of resolving the runtime: the resolved config, the paths and the config options found on disk.
+
 use crate::engine::{
     config::{BaseConfig, RulesConfig},
     constants::app_config_dir,
@@ -252,4 +254,25 @@ pub fn resolve_policy(config: Option<&ResolvedConfig>) -> Policy {
         Some(cfg) => Policy::from_config(cfg),
         None => Policy::default(),
     }
+}
+
+/// Which part of the configuration stack a [`ConfigLayer`] comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigLayerKind {
+    Registry,
+    Project,
+    Env,
+    Cli,
+    Global,
+}
+
+/// One layer of the resolved configuration, with where it came from.
+#[derive(Debug, Clone)]
+pub struct ConfigLayer {
+    pub kind: ConfigLayerKind,
+    /// Short name shown next to values: `registry:<name>`, `project`, `env`, `cli`, `global`.
+    pub label: String,
+    /// The file, URL or other place the layer was read from.
+    pub detail: String,
+    pub base: crate::engine::config::BaseConfig,
 }

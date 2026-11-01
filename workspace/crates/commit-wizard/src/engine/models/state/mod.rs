@@ -1,3 +1,5 @@
+//! The small state file `cw` keeps between runs (for registries).
+
 pub mod registry;
 
 use serde::{Deserialize, Serialize};

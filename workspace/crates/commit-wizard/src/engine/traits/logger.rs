@@ -1,3 +1,5 @@
+//! What the engine needs from a logger; implemented by `infra`.
+
 pub trait LoggerTrait: Send + Sync {
     fn heading(&self, msg: &str);
     fn debug(&self, msg: &str);

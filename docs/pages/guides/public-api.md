@@ -1,6 +1,8 @@
 # Public API Reference
 
-This page documents the complete configuration schema for Commit Wizard v0.0.2. All fields listed here are supported and stable.
+This page documents the configuration schema. Every field listed is accepted and validated, and a misspelled key inside a known table is an error.
+
+Most sections drive behaviour today. Four are **reserved**: `[pr]`, `[release]`, `[hooks]` and `[ai]` are accepted so that configs written now keep working, but no command reads them yet. They are marked where they appear.
 
 ## Top-level structure
 
@@ -20,6 +22,47 @@ version = 1  # Optional; currently always 1
 ```
 
 ---
+
+## File formats
+
+Every config file can be written in TOML, YAML or JSON. The file extension picks the format, and all three describe exactly the same settings.
+
+| Config | File names (first match wins) |
+| --- | --- |
+| Project | `.cwizard.{toml,yaml,yml,json}`, then `cwizard.{toml,yaml,yml,json}` |
+| Global | `config.{toml,yaml,yml,json}` in the app config directory |
+| Global rules | `rules.{toml,yaml,yml,json}` in the app config directory |
+| Registry | `config.*` and `rules.*` in the registry (or section) directory |
+
+The same project settings in each format:
+
+```toml
+# .cwizard.toml
+[commit]
+subject_max_length = 72
+
+[commit.types.wip]
+description = "Work in progress"
+bump = "patch"
+```
+
+```yaml
+# .cwizard.yaml
+commit:
+  subject_max_length: 72
+  types:
+    wip:
+      description: Work in progress
+      bump: patch
+```
+
+```json
+{ "commit": { "subject_max_length": 72, "types": { "wip": { "description": "Work in progress", "bump": "patch" } } } }
+```
+
+A misspelled top-level table — `[comit]`, `chnagelog:` — is not an error, but cw warns about it with a suggestion (`unknown top-level key \`comit\`; did you mean \`commit\`?`) every time the config loads, and `cw doctor` counts it as a warning. The settings under it are ignored until it is fixed. A misspelled key *inside* a known table is still a hard error.
+
+If a directory holds more than one project config (say `.cwizard.toml` and `.cwizard.yaml`), cw uses the first by the order above — TOML, then YAML, then JSON, and `.cwizard.*` before `cwizard.*` — and warns that the others are ignored. `cw doctor` reports it too. Keep one file per scope.
 
 ## `[commit]` — Commit message policy
 
@@ -190,8 +233,8 @@ footer_key = "BREAKING CHANGE"
 #### `commit.breaking.footer_keys`
 
 **Type:** `array of strings`  
-**Default:** `[]`  
-**Description:** Additional footer tokens to recognize as breaking changes.
+**Default:** `["BREAKING CHANGE", "BREAKING-CHANGE"]` when neither this nor `footer_key` is set  
+**Description:** Footer tokens recognised as breaking changes. When set, they are used together with `footer_key` instead of the defaults.
 
 ```toml
 [commit.breaking]
@@ -211,15 +254,16 @@ emoji = "💥"
 
 #### `commit.breaking.emoji_mode`
 
-**Type:** enum (`"prefix"`, `"suffix"`, `"replace"`)  
-**Default:** `"prefix"`  
-**Description:** Where to place the breaking change emoji in output.
+**Type:** enum (`"prepend"`, `"append"`, `"replace"`, `"none"`)  
+**Default:** `"prepend"`  
+**Description:** Where the breaking change emoji is meant to go. The value is validated and kept in the resolved config, but no command applies it to commit messages yet.
 
 ```toml
 [commit.breaking]
-emoji_mode = "prefix"   # 💥 feat(api): ...
-emoji_mode = "suffix"   # feat(api)! 💥: ...
-emoji_mode = "replace"  # 💥(api): ...
+emoji_mode = "prepend"  # 💥 feat(api): ...
+emoji_mode = "append"   # feat(api)!: ... 💥
+emoji_mode = "replace"  # replaces the type with the emoji
+emoji_mode = "none"     # never shown
 ```
 
 ### `commit.protected`
@@ -253,52 +297,55 @@ warn = true         # Show warning if attempting
 
 ### `commit.ticket`
 
-Ticket reference requirements (e.g., Jira ticket, GitHub issue number).
+Ticket references on commits. `cw` assumes no ticketing system (Jira, GitHub issues, a tracker of your own): **`pattern` says what a ticket looks like**, and `cw` writes the ticket at the start of the subject, as in `feat: Ticket-012: add ticketing`.
+
+`cw commit` gets the ticket from `--ticket`, from the branch name, or by asking, depending on `source`; `cw check` (and the commit check that `cw push` runs) fails a commit with no ticket when `required = true`.
 
 #### `commit.ticket.required`
 
 **Type:** `bool`  
-**Default:** `false`
+**Default:** `false`  
+**Description:** A commit must carry a ticket. `cw commit` refuses to commit without one (naming `--ticket` when it cannot ask), and `cw check` rejects commits whose message does not match `pattern`. With no `source` set, a required ticket is asked for.
 
 #### `commit.ticket.pattern`
 
 **Type:** `string` (regex)  
 **Default:** none  
-**Description:** Regex pattern for valid ticket IDs.
+**Description:** What a valid ticket looks like. Used to check `--ticket` and prompted answers, to find the ticket in a branch name, and by `cw check`, where it must match somewhere in the commit message (header, body or footer). With a capture group, the group is the ticket found in a branch name; otherwise the whole match. Without a pattern any text is accepted as a ticket, no ticket can be found in a branch name, and `required = true` with `cw check` fails every commit, so set one.
 
 ```toml
 [commit.ticket]
 required = true
-pattern = "PROJ-\\d+"    # Matches: PROJ-123, PROJ-999
-pattern = "#\\d+"        # Matches: #123, #999
-pattern = "([A-Z]+-\\d+|#\\d+)"  # Multiple formats
+pattern = "PROJ-\\d+"           # Jira-style: PROJ-123
+pattern = "#\\d+"               # GitHub-style: #123
+pattern = "Ticket-\\d+"         # your own: Ticket-012
+pattern = "([A-Z]+-\\d+|#\\d+)"  # more than one format
 ```
 
 #### `commit.ticket.source`
 
 **Type:** enum (`"branch"`, `"prompt"`, `"branch_or_prompt"`, `"disabled"`)  
 **Default:** `"disabled"`  
-**Description:** Where to extract ticket references from.
+**Description:** Where `cw commit` gets the ticket when `--ticket` is not given. `--ticket` always wins.
 
-```toml
-[commit.ticket]
-source = "branch"           # Extract from branch name: feature/PROJ-123/my-feature
-source = "prompt"           # Ask user
-source = "branch_or_prompt" # Try branch first, prompt if not found
-source = "disabled"         # Don't look for tickets
-```
+| Value | What `cw commit` does |
+| --- | --- |
+| `branch` | Takes the first match of `pattern` in the current branch name (`feature/PROJ-123-login` gives `PROJ-123`). No match: an error if `required`, otherwise no ticket. |
+| `prompt` | Asks for it (on a terminal). Leave empty for none unless `required`. Without a terminal: an error if `required`, otherwise no ticket. |
+| `branch_or_prompt` | Uses the branch if it matches, otherwise asks. |
+| `disabled` | Looks for nothing, unless `required` is on, in which case it asks. A ticket given with `--ticket` is still used. |
 
 #### `commit.ticket.header_format`
 
 **Type:** `string`  
-**Default:** `"[{ticket}] "`  
-**Description:** Format string for the ticket reference in the subject. Use `{ticket}` as placeholder.
+**Default:** `"{ticket}: "`  
+**Description:** How the ticket is written in front of the summary. `{ticket}` stands for the ticket, and the format must contain it. The ticket comes after the type and scope, so the commit stays a valid Conventional Commit, and it counts towards `subject_max_length`. A summary that already contains the ticket is left alone.
 
 ```toml
 [commit.ticket]
-header_format = "[{ticket}] "     # [PROJ-123] my message
-header_format = "({ticket}) "     # (PROJ-123) my message
-header_format = "{ticket}: "      # PROJ-123: my message
+header_format = "{ticket}: "      # feat(api): PROJ-123: add parser   (default)
+header_format = "[{ticket}] "     # feat(api): [PROJ-123] add parser
+header_format = "({ticket}) "     # feat(api): (PROJ-123) add parser
 ```
 
 ---
@@ -314,7 +361,7 @@ header_format = "{ticket}: "      # PROJ-123: my message
 ### `branch.protected`
 
 **Type:** `array of strings`  
-**Default:** `["main", "master"]`  
+**Default:** `["main", "master", "release/*"]`  
 **Description:** Branch name patterns (glob-style) that are protected.
 
 ```toml
@@ -325,64 +372,92 @@ protected = ["main", "master", "develop", "release/*", "hotfix/*"]
 ### `branch.naming.pattern`
 
 **Type:** `string`  
-**Default:** none  
-**Description:** Required branch naming pattern (regex).
+**Default:** `"{type}/{ticket}-{slug}"`  
+**Description:** The layout of the branch names `cw branch new` creates. It is a template, not a regular expression, and branch names are not checked against it by `cw check` or `cw push`.
+
+The parts are `{type}` (the kind of branch, `--type`), `{ticket}` (`--ticket`) and `{slug}` (the description, `--description`, as lower-case words joined by hyphens). `{slug}` is required; fixed text and separators between the parts are written as they are. A part that is not given is left out together with its separator.
 
 ```toml
 [branch.naming]
-pattern = "^(feature|bugfix|hotfix)/[a-z0-9-]+$"
-# Enforces: feature/my-feature, bugfix/issue-123, hotfix/critical
+pattern = "{slug}"                    # add-login-page
+pattern = "{type}/{slug}"             # feature/add-login-page
+pattern = "{ticket}-{slug}"           # PROJ-123-add-login-page
+pattern = "{type}/{ticket}-{slug}"    # feature/PROJ-123-add-login-page  (default)
+pattern = "feature/{ticket}_{slug}"   # feature/PROJ-123_add-login-page
 ```
+
+A flag for a part the template does not have (`--ticket` with `{type}/{slug}`) is refused rather than ignored. See [`cw branch new`](../commands/branch.md#creating-a-branch).
+
+### `branch.naming.require_type`
+
+**Type:** `bool`  
+**Default:** `false`  
+**Description:** `cw branch new` must be given a type (`--type`, or chosen when asked). The pattern must contain `{type}`.
+
+### `branch.naming.require_ticket`
+
+**Type:** `bool`  
+**Default:** `false`  
+**Description:** `cw branch new` must be given a ticket (`--ticket`, or typed when asked), checked against `commit.ticket.pattern`. The pattern must contain `{ticket}`. This is separate from `commit.ticket.required`, which is about commits.
+
+```toml
+[branch.naming]
+pattern = "{type}/{ticket}-{slug}"
+require_type = true
+require_ticket = true
+```
+
+A branch needs a description (`--description`) or a ticket (`--ticket`); either one alone is enough, and requiring the ticket makes the description optional.
 
 ---
 
 ## `[pr]` — Pull Request policy
 
-**Note:** Basic structure defined; full PR integration in v0.0.3+.
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet.
 
 ### `pr.enabled`
 
 **Type:** `bool`  
-**Default:** `false`
+**Default:** `true`
 
 ### `pr.title.require_conventional`
 
 **Type:** `bool`  
-**Default:** `false`  
+**Default:** unset
 **Description:** PR title must follow Conventional Commit format.
 
 ### `pr.title.require_ticket`
 
 **Type:** `bool`  
-**Default:** `false`  
+**Default:** unset
 **Description:** PR title must include a ticket reference.
 
 ### `pr.title.scope_mode`
 
 **Type:** enum (`"disabled"`, `"optional"`, `"required"`)  
-**Default:** `"optional"`
+**Default:** unset
 
 ### `pr.branch.check_source`
 
 **Type:** `bool`  
-**Default:** `true`  
+**Default:** unset
 **Description:** Validate source branch naming.
 
 ### `pr.branch.check_target`
 
 **Type:** `bool`  
-**Default:** `true`  
+**Default:** unset
 **Description:** Validate target branch is allowed.
 
 ### `pr.branch.source_pattern`
 
 **Type:** `string`  
-**Default:** none
+**Default:** unset
 
 ### `pr.branch.target_allowed`
 
 **Type:** `array of strings`  
-**Default:** `["main"]`
+**Default:** unset
 
 ---
 
@@ -497,7 +572,7 @@ tag_prefix = "release-"  # Tags: release-1.0.0
 ### `changelog.header.description`
 
 **Type:** `string`  
-**Default:** `""`
+**Default:** none
 
 ### `changelog.layout.group_by`
 
@@ -575,7 +650,9 @@ order = 10
 
 ---
 
-## `[release]` — Release workflow (structural in v0.0.2, full support in v0.0.3+)
+## `[release]` — Release workflow (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. To cut a release today, use [`cw tag`](../commands/tag.md) and [`cw changelog`](../commands/changelog.md).
 
 ### `release.enabled`
 
@@ -631,6 +708,31 @@ order = 10
 
 **Type:** `string`  
 **Default:** `"main"`
+
+---
+
+## `[global]` — Relation to the global config
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `inherit` | bool | `false` | Use the global config as the lowest layer under this project's config |
+
+By default a project config replaces the global one: the global config only applies when no project (or registry, env or cli) config exists. Set `inherit = true` to have the global config fill in whatever the project does not set.
+
+```toml
+[global]
+inherit = true
+```
+
+## `[hooks]` — Git hooks (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `pre_commit`, `commit_msg` and `pre_push`, each a `bool` defaulting to `false`.
+
+---
+
+## `[ai]` — AI assistance (reserved)
+
+**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `enabled` (`bool`, default `false`), `provider` (a string such as `"copilot"`), and an `[ai.commands]` table of `bool` switches named `commit`, `changelog` and `release_prepare`.
 
 ---
 
@@ -694,13 +796,12 @@ Then reference them:
 
 ```toml
 [commit.scopes.definitions]
-# Could reference @rules.allowed_scopes in future versions
 
 [commit.ticket]
 pattern = "@rules.ticket_pattern"
 ```
 
-**Current status:** Rules are stored but full cross-field referencing coming in v0.0.3+.
+**How references work.** Any *text* setting — including each item of a list of text values — can be written as `"@rules.<name>"`, and cw replaces it with the rule's value when the configuration loads. A rule can itself point at another rule. Numbers and booleans cannot be references, because they are not text: write those directly. A reference to a rule that does not exist is an error.
 
 ---
 
@@ -742,7 +843,7 @@ require_header = false
 require_footer = false
 footer_key = "BREAKING CHANGE"
 emoji = "💥"
-emoji_mode = "prefix"
+emoji_mode = "prepend"
 
 [branch]
 remote = "origin"
@@ -788,4 +889,4 @@ date_format = "%Y-%m-%d"
 | Use shared registry config | `[registry]` + `[registries]` |
 | Define reusable values | `[rules]` |
 
-See [Configuration Guides](./configs/) for practical examples.
+See [Configuration Guides](configs/recommended.md) for practical examples.

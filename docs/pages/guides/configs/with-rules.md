@@ -26,21 +26,17 @@ team_slack_channel = "#dev-team"
 
 ## Using rules with patterns
 
-**Current status (v0.0.2):** Rules are stored but cross-field references are coming in v0.0.3+.
-
-In v0.0.2, use rules as a documentation and reference point. In v0.0.3+, you'll be able to do:
+Any text setting can refer to a rule by writing `"@rules.<name>"`. cw swaps in the rule's value when the configuration loads:
 
 ```toml
+[rules]
+ticket_pattern = "PROJ-\\d+"
+
 [commit.ticket]
-pattern = "@rules.ticket_pattern"
+pattern = "@rules.ticket_pattern"   # becomes PROJ-\d+
 ```
 
-But for now, manually reference the rule value:
-
-```toml
-[commit.ticket]
-pattern = "PROJ-\\d+"  # From @rules.ticket_pattern
-```
+References work in every text setting, and in each item of a list of text values. Numbers and booleans cannot be references; write those directly. A reference to a rule that does not exist is an error, and `cw config list --effective` shows the resolved values.
 
 ## Rules for different aspects
 
@@ -212,14 +208,14 @@ types = ["docs"]
 required = true
 pattern = "PROJ-\\d+"
 source = "branch_or_prompt"
-header_format = "[{ticket}] "
+header_format = "{ticket}: "
 
 # Branch config (manually reference protected_branches)
 [branch]
 protected = ["main", "staging", "release/*"]
 
 [branch.naming]
-pattern = "^(feature|bugfix|hotfix|release)/[a-z0-9-]+(/[a-z0-9-]+)*$"
+pattern = "{type}/{ticket}-{slug}"   # layout of cw branch new names
 
 # Changelog (manually reference changelog_section_order)
 [changelog]
@@ -241,18 +237,33 @@ version = 1
 use = "company-standards"
 
 # Now the registry's [rules] section is available
-# Reference them as @rules.* (v0.0.3+ with cross-field refs)
+# Reference them as "@rules.<name>" in any text setting
 ```
 
 ## Rules inheritance
 
-Rules resolution follows this precedence:
+Rules come from the first of these that exists:
 
 ```sh
-project [rules] > registry [rules] > global [rules] > defaults
+project [rules] > registry rules.toml > global rules.toml
 ```
 
-Higher-priority `[rules]` sections override lower-priority ones.
+The chosen rules are used **whole**: a project that has a `[rules]` table does not also see the registry's rules, and the global rules file is only used when the registry has none. A `@rules.<name>` reference that the chosen rules do not define is an error.
+
+### Rules files
+
+A registry's `rules.toml` and your global `rules.toml` (in the app config directory) hold the rules directly, or inside a single `[rules]` table as in a project config; both work:
+
+```toml
+# rules.toml
+ticket_pattern = "PROJ-\\d+"
+```
+
+```toml
+# rules.toml, same rules
+[rules]
+ticket_pattern = "PROJ-\\d+"
+```
 
 ## Documentation rules
 

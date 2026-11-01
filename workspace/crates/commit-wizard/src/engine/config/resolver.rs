@@ -1,6 +1,11 @@
+//! Finds and loads the global, project and standard config files.
+
 use crate::engine::{
     LoggerTrait,
-    config::{BaseConfig, ProjectConfig, RulesConfig, StandardConfig},
+    config::{
+        BaseConfig, ConfigFormat, ProjectConfig, RulesConfig, StandardConfig,
+        lint::unknown_top_level_keys,
+    },
     constants::{resolve_global_config_path, resolve_global_rules_path},
     error::{ErrorCode, Result},
 };
@@ -65,10 +70,16 @@ pub fn load_project_config(
                 );
                 logger.debug(&msg);
             }
-            match ProjectConfig::from_toml_str(&content) {
+            match ProjectConfig::from_str_as(ConfigFormat::from_path(path), &content) {
                 Ok(config) => {
                     if let Some(logger) = logger {
                         logger.debug("load_project_config: Successfully parsed config");
+                        // Typos in a top-level table name would otherwise be ignored silently.
+                        for unknown in
+                            unknown_top_level_keys(ConfigFormat::from_path(path), &content)
+                        {
+                            logger.warn(&format!("{}: {}", path.display(), unknown.describe()));
+                        }
                     }
                     Some(config)
                 }
@@ -103,7 +114,7 @@ pub fn load_standard_config(path: &std::path::Path) -> Option<StandardConfig> {
     }
 
     match std::fs::read_to_string(path) {
-        Ok(content) => StandardConfig::from_toml_str(&content).ok(),
+        Ok(content) => StandardConfig::from_str_as(ConfigFormat::from_path(path), &content).ok(),
         Err(_) => None,
     }
 }
@@ -114,7 +125,9 @@ pub fn load_rules_config(path: &std::path::Path) -> Option<RulesConfig> {
     }
 
     match std::fs::read_to_string(path) {
-        Ok(content) => RulesConfig::from_toml_str(&content).ok(),
+        Ok(content) => RulesConfig::from_str_as(ConfigFormat::from_path(path), &content)
+            .ok()
+            .map(RulesConfig::unwrapped),
         Err(_) => None,
     }
 }

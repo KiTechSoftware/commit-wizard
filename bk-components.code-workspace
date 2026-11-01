@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../components"
+		},
+		{
+			"path": "../../_sort/gcr-rust"
+		},
+		{
+			"path": "../../_sort/cadman"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}

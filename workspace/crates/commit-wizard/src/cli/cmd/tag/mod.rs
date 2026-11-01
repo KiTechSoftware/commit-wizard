@@ -1,3 +1,5 @@
+//! `cw tag`: creates the next version tag. Defines the arguments and hands them to the use case.
+
 use clap::Args as ClapArgs;
 
 use crate::{
@@ -19,7 +21,7 @@ pub struct Args {
     pub prefix: Option<String>,
 
     /// Tag suffix (e.g., -rc1)
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     pub suffix: Option<String>,
 
     /// Create GPG-signed tag

@@ -1,13 +1,18 @@
+//! Get, set and unset a single setting by dotted key, validating the value before it is written.
+
 use std::path::{Path, PathBuf};
 
 use toml::Value;
 
 use crate::engine::{
-    config::{ProjectConfig, StandardConfig},
+    config::{ConfigFormat, ProjectConfig, StandardConfig},
     error::{ErrorCode, Result},
 };
 
-use super::show::{ConfigTarget, resolve_config_path};
+use super::{
+    patch::patch_toml,
+    show::{ConfigTarget, resolve_config_path},
+};
 
 #[derive(Debug, Clone)]
 pub struct ConfigGetInput<'a> {
@@ -70,7 +75,7 @@ pub fn config_get(input: &ConfigGetInput<'_>) -> Result<ConfigGetOutput> {
     }
 
     let raw = std::fs::read_to_string(&path)?;
-    let doc = parse_doc(input.target, &raw)?;
+    let doc = parse_doc(input.target, ConfigFormat::from_path(&path), &raw)?;
 
     let value = get_value(&doc, input.key).cloned().ok_or_else(|| {
         ErrorCode::ConfigInvalid
@@ -94,22 +99,20 @@ pub fn config_set(input: &ConfigSetInput<'_>) -> Result<ConfigSetOutput> {
     } else {
         resolve_config_path(input.target, input.cwd)?
     };
+    let format = ConfigFormat::from_path(&path);
     let raw = if path.exists() {
         std::fs::read_to_string(&path)?
     } else {
-        default_doc_toml(input.target)?
+        default_doc(input.target, format)?
     };
 
-    let mut doc = parse_doc(input.target, &raw)?;
+    let mut doc = parse_doc(input.target, format, &raw)?;
+    let before = doc.clone();
     let value = parse_value_for_key(input.key, input.value)?;
 
     set_value(&mut doc, input.key, value.clone())?;
     let validated = validate_doc(input.target, doc)?;
-    let rendered = toml::to_string_pretty(&validated).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("error", err.to_string())
-    })?;
+    let rendered = render_for_save(input.target, format, &raw, &before, &validated)?;
 
     if !input.dry_run {
         if let Some(parent) = path.parent()
@@ -117,7 +120,7 @@ pub fn config_set(input: &ConfigSetInput<'_>) -> Result<ConfigSetOutput> {
         {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&path, &rendered)?;
+        crate::engine::fs::write_text(&path, &rendered)?;
     }
 
     Ok(ConfigSetOutput {
@@ -142,19 +145,17 @@ pub fn config_unset(input: &ConfigUnsetInput<'_>) -> Result<ConfigUnsetOutput> {
             .with_context("reason", "config file does not exist"));
     }
 
+    let format = ConfigFormat::from_path(&path);
     let raw = std::fs::read_to_string(&path)?;
-    let mut doc = parse_doc(input.target, &raw)?;
+    let mut doc = parse_doc(input.target, format, &raw)?;
+    let before = doc.clone();
     let removed = unset_value(&mut doc, input.key)?;
 
     let validated = validate_doc(input.target, doc)?;
-    let rendered = toml::to_string_pretty(&validated).map_err(|err| {
-        ErrorCode::SerializationFailure
-            .error()
-            .with_context("error", err.to_string())
-    })?;
+    let rendered = render_for_save(input.target, format, &raw, &before, &validated)?;
 
     if !input.dry_run {
-        std::fs::write(&path, &rendered)?;
+        crate::engine::fs::write_text(&path, &rendered)?;
     }
 
     Ok(ConfigUnsetOutput {
@@ -162,6 +163,29 @@ pub fn config_unset(input: &ConfigUnsetInput<'_>) -> Result<ConfigUnsetOutput> {
         key: input.key.to_string(),
         removed,
     })
+}
+
+/// The text to save for `after`, given the file as it was.
+///
+/// A TOML file is patched in place, so comments, spacing and key order survive
+/// and only the changed keys differ. The patch is checked by reading it back:
+/// if it does not parse to exactly `after` (it always should), the whole file
+/// is re-rendered instead, which is always correct but drops comments. JSON
+/// and YAML files are always re-rendered.
+fn render_for_save(
+    target: ConfigTarget,
+    format: ConfigFormat,
+    raw: &str,
+    before: &Value,
+    after: &Value,
+) -> Result<String> {
+    if format == ConfigFormat::Toml
+        && let Ok(patched) = patch_toml(raw, before, after)
+        && parse_doc(target, format, &patched).is_ok_and(|reparsed| reparsed == *after)
+    {
+        return Ok(patched);
+    }
+    format.render(after)
 }
 
 fn ensure_supported_key(key: &str) -> Result<()> {
@@ -182,21 +206,39 @@ fn is_supported_key(key: &str) -> bool {
             | "commit.ticket.required"
             | "commit.ticket.pattern"
             | "commit.ticket.header_format"
+            | "commit.ticket.source"
             | "branch.remote"
+            | "branch.naming.pattern"
+            | "branch.naming.require_type"
+            | "branch.naming.require_ticket"
             | "release.enabled"
             | "release.source_branch"
             | "release.target_branch"
             | "ai.enabled"
             | "ai.provider"
+            | "global.inherit"
             | "changelog.output"
+            | "changelog.format"
             | "versioning.tag_prefix"
+            | "commit.use_emojis"
+            | "commit.scopes.mode"
+            | "commit.scopes.restrict_to_defined"
+            | "commit.breaking.require_header"
+            | "commit.breaking.require_footer"
+            | "check.require_conventional"
+            | "check.commits.enabled"
+            | "check.commits.enforce_on"
+            | "push.allow.protected"
+            | "push.allow.force"
+            | "push.check.commits"
+            | "push.check.branch_policy"
     )
 }
 
-fn parse_doc(target: ConfigTarget, raw: &str) -> Result<Value> {
+fn parse_doc(target: ConfigTarget, format: ConfigFormat, raw: &str) -> Result<Value> {
     match target {
         ConfigTarget::Project => {
-            let parsed = ProjectConfig::from_toml_str(raw)?;
+            let parsed = ProjectConfig::from_str_as(format, raw)?;
             toml::Value::try_from(parsed).map_err(|err| {
                 ErrorCode::SerializationFailure
                     .error()
@@ -204,7 +246,7 @@ fn parse_doc(target: ConfigTarget, raw: &str) -> Result<Value> {
             })
         }
         ConfigTarget::Global => {
-            let parsed = StandardConfig::from_toml_str(raw)?;
+            let parsed = StandardConfig::from_str_as(format, raw)?;
             toml::Value::try_from(parsed).map_err(|err| {
                 ErrorCode::SerializationFailure
                     .error()
@@ -243,24 +285,10 @@ fn validate_doc(target: ConfigTarget, value: Value) -> Result<Value> {
     }
 }
 
-fn default_doc_toml(target: ConfigTarget) -> Result<String> {
+fn default_doc(target: ConfigTarget, format: ConfigFormat) -> Result<String> {
     match target {
-        ConfigTarget::Project => {
-            let doc = ProjectConfig::minimal();
-            toml::to_string_pretty(&doc).map_err(|err| {
-                ErrorCode::SerializationFailure
-                    .error()
-                    .with_context("error", err.to_string())
-            })
-        }
-        ConfigTarget::Global => {
-            let doc = StandardConfig::minimal();
-            toml::to_string_pretty(&doc).map_err(|err| {
-                ErrorCode::SerializationFailure
-                    .error()
-                    .with_context("error", err.to_string())
-            })
-        }
+        ConfigTarget::Project => format.render(&ProjectConfig::minimal()),
+        ConfigTarget::Global => format.render(&StandardConfig::minimal()),
     }
 }
 
@@ -340,22 +368,40 @@ fn parse_value_for_key(key: &str, raw: &str) -> Result<Value> {
                 .with_context("value", raw)
                 .with_context("reason", "expected integer")
         }),
-        "commit.ticket.required" | "release.enabled" | "ai.enabled" => {
-            raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
-                ErrorCode::ConfigInvalid
-                    .error()
-                    .with_context("key", key)
-                    .with_context("value", raw)
-                    .with_context("reason", "expected boolean")
-            })
-        }
+        "commit.ticket.required"
+        | "release.enabled"
+        | "ai.enabled"
+        | "global.inherit"
+        | "commit.use_emojis"
+        | "commit.scopes.restrict_to_defined"
+        | "commit.breaking.require_header"
+        | "commit.breaking.require_footer"
+        | "check.require_conventional"
+        | "check.commits.enabled"
+        | "push.allow.protected"
+        | "push.allow.force"
+        | "push.check.commits"
+        | "push.check.branch_policy"
+        | "branch.naming.require_type"
+        | "branch.naming.require_ticket" => raw.parse::<bool>().map(Value::Boolean).map_err(|_| {
+            ErrorCode::ConfigInvalid
+                .error()
+                .with_context("key", key)
+                .with_context("value", raw)
+                .with_context("reason", "expected boolean")
+        }),
         "branch.remote"
+        | "branch.naming.pattern"
         | "commit.ticket.pattern"
         | "commit.ticket.header_format"
+        | "commit.ticket.source"
         | "release.source_branch"
         | "release.target_branch"
         | "ai.provider"
         | "changelog.output"
+        | "changelog.format"
+        | "commit.scopes.mode"
+        | "check.commits.enforce_on"
         | "versioning.tag_prefix" => Ok(Value::String(raw.to_string())),
         _ => Err(ErrorCode::ConfigInvalid
             .error()

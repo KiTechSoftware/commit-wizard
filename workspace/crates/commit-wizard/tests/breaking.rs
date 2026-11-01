@@ -123,3 +123,21 @@ mod prompts {
         assert_eq!(repo.subjects(), before);
     }
 }
+
+#[test]
+fn a_scope_is_refused_when_scopes_are_disabled() {
+    let repo = Repo::bare();
+    repo.write(
+        ".cwizard.toml",
+        "version = 1\n[commit.scopes]\nmode = \"disabled\"\n",
+    );
+    repo.write("f.txt", "x");
+    repo.git(&["add", "-A"]);
+
+    let refused = repo.cw(&["commit", "-t", "feat", "-s", "api", "-m", "x"]);
+    assert!(!refused.status.success(), "{}", text(&refused));
+
+    let plain = repo.cw(&["commit", "-t", "feat", "-m", "x"]);
+    assert!(plain.status.success(), "{}", text(&plain));
+    assert_eq!(repo.subjects()[0], "feat: x");
+}

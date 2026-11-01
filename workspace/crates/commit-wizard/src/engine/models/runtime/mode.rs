@@ -1,3 +1,5 @@
+//! `RunMode`: whether the run is interactive, non-interactive or in CI.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

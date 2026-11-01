@@ -74,8 +74,12 @@ pub struct Cli {
 pub enum Command {
     /// Add files to staging area interactively
     Add(cmd::add::Args),
+    /// List, switch, create and prune branches
+    Branch(cmd::branch::Args),
     /// Bump version based on Conventional Commits
     Bump(cmd::bump::Args),
+    /// Generate or update a changelog from Conventional Commit history
+    Changelog(cmd::changelog::Args),
     /// Check commits in a range for Conventional Commit compliance
     Check(cmd::check::Args),
     /// Guide the user through writing a Conventional Commit message
@@ -84,6 +88,8 @@ pub enum Command {
     Config(cmd::config::Args),
     /// Diagnose and fix common issues
     Doctor(cmd::doctor::Args),
+    /// Correct commit messages that break the project's rules
+    Fix(cmd::fix::Args),
     /// Initialize a project config (prefers .cwizard.toml; supports cwizard.toml)
     Init(cmd::init::Args),
     /// Push commits to a remote repository

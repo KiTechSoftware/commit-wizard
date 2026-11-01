@@ -1,3 +1,5 @@
+//! `cw doctor`: checks the environment and configuration and reports problems; `fix` repairs the ones it can.
+
 use std::time::Instant;
 
 use crate::{
@@ -5,8 +7,11 @@ use crate::{
     engine::{
         capabilities::config::init::{self, ConfigContext, ConfigOption, ConfigSpec},
         config::resolver::{load_project_config, load_rules_config, load_standard_config},
+        config::{ConfigFormat, lint::unknown_top_level_keys},
         constants::{
+            competing_project_configs,
             emoji::{ERROR, INFO, SUCCESS, WARN},
+            find_config_file,
             paths::resolve_new_project_config_path,
             resolve_global_config_path, resolve_global_rules_path, resolve_project_config_path,
         },
@@ -124,12 +129,46 @@ pub fn run(ctx: &Context) -> CoreResult<()> {
         None => CheckResult::info("Project config", "not found — default policy will be used"),
     });
 
+    for (label, path) in [
+        ("Project config", repo_config_path.clone()),
+        ("Global config", resolve_global_config_path().ok()),
+    ] {
+        if let Some(path) = path
+            && let Ok(raw) = std::fs::read_to_string(&path)
+        {
+            for unknown in unknown_top_level_keys(ConfigFormat::from_path(&path), &raw) {
+                let detail = format!("{}: {}", path.display(), unknown.describe());
+                // The project config already logs this when it loads; say it for the global one.
+                if label == "Global config" {
+                    ui.logger().warn(&detail);
+                }
+                checks.push(CheckResult::warn(label, detail));
+            }
+        }
+    }
+
+    if let Some(chosen) = &repo_config_path {
+        let ignored = competing_project_configs(chosen);
+        if !ignored.is_empty() {
+            checks.push(CheckResult::warn(
+                "Project config files",
+                format!(
+                    "using {}; ignoring {}",
+                    chosen.display(),
+                    ignored
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            ));
+        }
+    }
+
     let repo_rules_path = repo_config_path
         .as_ref()
-        .map(|p| p.parent().unwrap_or(p).join(".cwizard.rules.toml"));
-    if let Some(ref path) = repo_rules_path
-        && path.exists()
-    {
+        .and_then(|p| find_config_file(p.parent().unwrap_or(p), ".cwizard.rules"));
+    if let Some(ref path) = repo_rules_path {
         checks.push(if load_rules_config(path).is_none() {
             CheckResult::error(
                 "Project rules",
@@ -401,6 +440,8 @@ pub fn fix(ctx: &Context) -> CoreResult<()> {
                 hidden: true,
                 with_rules: false,
                 registry_options: Default::default(),
+                file_format: ConfigFormat::from_path(&output_path),
+                answers: None,
             })?;
             let verb = if ctx.dry_run() {
                 "Would create"

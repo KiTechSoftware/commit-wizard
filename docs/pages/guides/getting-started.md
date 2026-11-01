@@ -16,7 +16,7 @@ Verify installation:
 cw --version
 ```
 
-**Note:** Homebrew, Windows and Linux installers coming soon.
+**Note:** `cargo install` is the supported way to install `cw` for now; prebuilt binaries and system packages are not available yet. You need Rust 1.89 or newer, and `git` on your `PATH`.
 
 ## Quick start (5 minutes)
 
@@ -47,6 +47,7 @@ You'll be prompted for:
 
 - **Type** — `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`
 - **Scope** (optional) — `api`, `ui`, `db`, etc.
+- **Ticket** (only if your project uses tickets) — `PROJ-123`, `#42`, `Ticket-012`; see [Tickets](../commands/commit.md#tickets)
 - **Subject** — what you changed (max 72 chars)
 - **Body** (optional) — detailed explanation
 - **Breaking change** (optional) — mark as major version bump
@@ -77,7 +78,8 @@ Exit status: `0` = all pass, non-zero = violations found.
 
 ```sh
 cw bump
-# Output: v1.2.0 (detected from commits)
+# [ok] Version bump: 1.1.0 → 1.2.0   (next_tag: v1.2.0)
+# Add --json for a machine-readable result
 ```
 
 ### 6. Create release tag
@@ -268,8 +270,8 @@ The `.cwizard.toml` file (created by `cw init`) supports these sections:
 | Section | Purpose |
 | --- | --- |
 | `[commit]` | Commit type/scope definitions, subject length, breaking change behavior |
-| `[branch]` | Protected branches, branch naming patterns |
-| `[pr]` | PR title requirements (requires additional tooling; v0.0.2 basic support) |
+| `[branch]` | Protected branches, the layout of new branch names |
+| `[pr]` | PR title requirements (reserved; no command uses it yet) |
 | `[check]` | Which branches require conventional commits |
 | `[push]` | Protected branch / force push restrictions |
 | `[versioning]` | Tag prefix, version format |
@@ -284,23 +286,26 @@ See [Configuration Guides](../guides/configs/standard.md) for full reference and
 | Command | Purpose |
 | --- | --- |
 | `cw add` | Stage files interactively or explicitly |
+| `cw branch` | List, switch, create and prune branches |
 | `cw commit` | Write a conventional commit interactively or via flags |
 | `cw check` | Validate commit history for compliance |
 | `cw bump` | Calculate next semantic version |
+| `cw changelog` | Generate or update a changelog from commit history |
 | `cw tag` | Create a Git tag for the next release |
 | `cw push` | Push with policy checks |
 | `cw config show` | Inspect active configuration |
 | `cw init` | Create `.cwizard.toml` with a profile |
 | `cw doctor` | Diagnose issues and suggest fixes |
+| `cw fix` | Correct commit messages that break the rules |
 
-See [Command Reference](../commands/) for full details.
+See [Command Reference](../commands/global-flags.md) for full details.
 
 ## Next steps
 
 - **Customize config** — Adjust scopes, types, and validation rules in `.cwizard.toml`
 - **Use in CI** — Run `cw check` as a pull request gate; `cw bump` and `cw tag` in release pipelines
 - **Share config** — Set up a registry for teams or organizations
-- **Configure hooks** — (Future in v0.0.3+) Integrate with Git hooks via `cw hook install`
+- **Git hooks** — there is no `cw` hook installer yet; to check on every push, call `cw check` from a `pre-push` hook of your own
 
 ## Help & troubleshooting
 
@@ -339,4 +344,4 @@ cw config get commit.scopes.mode
 ## Support
 
 - [GitHub Issues](https://github.com/KiTechSoftware/commit-wizard/issues)
-- [Documentation](../)
+- [Documentation](../index.md)

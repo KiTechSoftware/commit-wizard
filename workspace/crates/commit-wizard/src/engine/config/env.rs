@@ -1,10 +1,10 @@
-/// Build a `BaseConfig` from environment variables (SRS §4).
-///
-/// This layer sits between CLI args and repo config in the resolution stack:
-///   CLI args > ENV > repo config > registry config > global config > defaults
-///
-/// Only fields with a corresponding set ENV variable are populated; everything
-/// else remains `None` so that lower-priority layers can still apply.
+//! Build a `BaseConfig` from environment variables (SRS §4).
+//!
+//! This layer sits between CLI args and repo config in the resolution stack:
+//!   CLI args > ENV > repo config > registry config > global config > defaults
+//!
+//! Only fields with a corresponding set ENV variable are populated; everything
+//! else remains `None` so that lower-priority layers can still apply.
 use std::env;
 
 use crate::engine::{
@@ -170,6 +170,7 @@ pub fn build_env_config() -> Option<BaseConfig> {
         hooks: None,
         registry: None,
         registries: None,
+        global: None,
     })
 }
 
@@ -211,6 +212,8 @@ fn build_branch() -> Option<BranchConfig> {
     let protected = get_list(ENV_BRANCH_PROTECTED);
     let naming = get_string(ENV_BRANCH_NAMING_PATTERN).map(|pattern| BranchNamingConfig {
         pattern: Some(pattern),
+        require_type: None,
+        require_ticket: None,
     });
     some_if_any!([remote, protected, naming] => BranchConfig { remote, protected, naming })
 }

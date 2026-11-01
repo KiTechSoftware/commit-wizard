@@ -8,9 +8,10 @@ authors.workspace = true
 repository = "https://github.com/kitechsoftware/commit-wizard"
 homepage = "https://commit-wizard.kitechsoftware.com"
 documentation = "https://docs.rs/commit-wizard"
-readme.workspace = true
-keywords = ["cli", "conventional-commits"]
-categories = ["command-line-utilities"]
+readme = "README.md"
+keywords = ["cli", "conventional-commits", "changelog", "semver", "git"]
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.89"
 publish = true
 
 [[bin]]
@@ -32,6 +33,8 @@ serde_json.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 toml.workspace = true
+toml_edit.workspace = true
+yaml_serde.workspace = true
 tokio.workspace = true
 tabled.workspace = true
 tracing.workspace = true

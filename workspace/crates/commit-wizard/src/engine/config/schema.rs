@@ -1,9 +1,11 @@
+//! The versioned file envelopes that config files deserialise into.
+
 use serde::{Deserialize, Serialize};
 
-use crate::engine::{ErrorCode, Result};
+use crate::engine::Result;
 
 // external schema for config documents (global, registry, project)
-use super::{BaseConfig, RulesConfig};
+use super::{BaseConfig, ConfigFormat, RulesConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Versioned<T> {
@@ -28,11 +30,12 @@ pub type ProjectConfig = Versioned<ProjectBody>;
 
 impl StandardConfig {
     pub fn from_toml_str(input: &str) -> Result<Self> {
-        toml::from_str(input).map_err(|err| {
-            ErrorCode::ConfigInvalid
-                .error()
-                .with_context("error", err.to_string())
-        })
+        Self::from_str_as(ConfigFormat::Toml, input)
+    }
+
+    /// Parse a document written in the given format.
+    pub fn from_str_as(format: ConfigFormat, input: &str) -> Result<Self> {
+        format.parse(input)
     }
 
     pub fn minimal() -> Self {
@@ -59,11 +62,12 @@ impl StandardConfig {
 
 impl ProjectConfig {
     pub fn from_toml_str(input: &str) -> Result<Self> {
-        toml::from_str(input).map_err(|err| {
-            ErrorCode::ConfigInvalid
-                .error()
-                .with_context("error", err.to_string())
-        })
+        Self::from_str_as(ConfigFormat::Toml, input)
+    }
+
+    /// Parse a document written in the given format.
+    pub fn from_str_as(format: ConfigFormat, input: &str) -> Result<Self> {
+        format.parse(input)
     }
 
     pub fn minimal() -> Self {

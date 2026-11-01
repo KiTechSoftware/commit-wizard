@@ -1,3 +1,5 @@
+//! The section types `BaseConfig` is made of (`[commit]`, `[commit.types]`, `[commit.scopes]`, `[commit.breaking]` and so on).
+
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Deserializer, Serialize};
@@ -6,7 +8,7 @@ use crate::engine::models::policy::enforcement::{
     BumpLevel, ChangelogFormat, CommitEnforcementScope, EmojiMode, ScopeMode, TicketSource,
 };
 
-/// Deserialize Option<String>, treating empty strings as None
+/// Deserialize `Option<String>`, treating empty strings as `None`
 fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
@@ -174,6 +176,12 @@ pub struct BranchNamingConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub pattern: Option<String>,
+    /// `cw branch new` must be given a type (`--type`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub require_type: Option<bool>,
+    /// `cw branch new` must be given a ticket (`--ticket`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub require_ticket: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -284,6 +292,25 @@ pub struct ChangelogConfig {
     pub layout: Option<ChangelogLayoutConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sections: Option<BTreeMap<String, ChangelogSectionConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub links: Option<ChangelogLinksConfig>,
+}
+
+/// Commit and compare links in the changelog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangelogLinksConfig {
+    /// Turn links off with `false` (default: on, when the remote has a web address).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Web address of the repository, used instead of the one derived from the
+    /// `origin` remote.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_string",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -449,6 +476,16 @@ pub struct AiCommandsConfig {
     pub changelog: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_prepare: Option<bool>,
+}
+
+/// How a project config relates to the user-level (global) config.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GlobalConfig {
+    /// Use the global config as the lowest layer under this project's config.
+    /// Off by default: a project config normally replaces the global one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inherit: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

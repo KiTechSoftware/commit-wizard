@@ -77,7 +77,7 @@ require_header = false
 require_footer = false
 footer_key = "BREAKING CHANGE"
 emoji = "💥"
-emoji_mode = "prefix"
+emoji_mode = "prepend"
 
 # Tickets are not required
 [commit.ticket]
@@ -164,7 +164,7 @@ Add ticket requirements:
 [commit.ticket]
 required = true
 pattern = "PROJ-\\d+"
-source = "branch_or_prompt"
+source = "branch_or_prompt"   # take it from the branch name, or ask
 ```
 
 See [Public API Reference](../public-api.md) for all available options.

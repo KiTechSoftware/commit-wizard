@@ -1,3 +1,5 @@
+//! `cw push`: pushes with the policies applied. Defines the arguments and hands them to the use case.
+
 use clap::Args as ClapArgs;
 
 use crate::{

@@ -58,20 +58,25 @@ cw push --ci --from $BASE_SHA
 
 ## Pre-push checks
 
-By default `cw push` validates commits and branch policy before pushing. You can control this behaviour in config:
+By default `cw push` validates the commits being pushed and applies the branch policy before pushing.
+
+- Pushing to a **protected branch** (`branch.protected`, by default `main`, `master` and `release/*`) is blocked unless `push.allow.protected` is on or you pass the global `--force`.
+- Invalid commits **block the push only on protected branches** (`check.commits.enforce_on`, default `protected_branches`). On any other branch they are listed but the push goes ahead; set `enforce_on = "all_branches"` to block everywhere.
+
+You can control this behaviour in config:
 
 ```toml
 [push.check]
 commits = true          # run cw check on commits being pushed
-branch_policy = true    # enforce branch naming and protection rules
+branch_policy = true    # enforce branch protection rules (branch naming is not enforced yet)
 
 [push.allow]
 protected = false       # allow pushing to protected branches
 force = false           # allow force push
 ```
 
-These can also be overridden with the `--force` global flag or via environment variables (`CW_PUSH_CHECK_COMMITS`, `CW_PUSH_ALLOW_PROTECTED`, etc.).
+These can also be overridden with the `--force` global flag or via environment variables (`CW_PUSH_CHECK_COMMITS`, `CW_PUSH_ALLOW_PROTECTED`, etc.; see [environment variables](../guides/environment.md)).
 
 ## Global flags
 
-All [global flags](../global-flags.md) are supported. `--dry-run` simulates the push and any checks without making network calls.
+All [global flags](global-flags.md) are supported. `--dry-run` simulates the push and any checks without making network calls.

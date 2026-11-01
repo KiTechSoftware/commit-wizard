@@ -6,24 +6,27 @@
 //!
 //! ## Submodules
 //!
-//! - [`args`]: Command-line argument definitions and parsing
-//! - [`cmd`]: Executable commands (commit, check, tag, bump, etc.)
+//! - `args`: Command-line argument definitions and parsing
+//! - `cmd`: Executable commands (commit, check, tag, bump, etc.)
 //!
 //! ## Example
 //!
-//! The typical entry point for a binary using this crate:
+//! This is the whole `cw` binary (it is compiled as part of the tests, never run):
 //!
-//! ```ignore
-//! use commit_wizard::cli::run;
-//! fn main() {
-//!     std::process::exit(run().into());
+//! ```no_run
+//! fn main() -> std::process::ExitCode {
+//!     commit_wizard::cli::run()
 //! }
 //! ```
 
+#[doc(hidden)]
 pub mod args;
+#[doc(hidden)]
 pub mod cmd;
 
 use std::process::ExitCode;
+/// The result type used by command handlers.
+#[doc(hidden)]
 pub type CliResult<T> = Result<T, Error>;
 
 use crate::{
@@ -34,6 +37,10 @@ use clap::Parser;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, fmt};
 
+/// Run the `cw` command line: parse the arguments, run the command, and report any error.
+///
+/// Returns the process exit code. A non-zero code means the command failed; the error has
+/// already been printed.
 pub fn run() -> ExitCode {
     match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -82,11 +89,14 @@ async fn async_run() -> ExitCode {
 
     let result = match cli.command {
         args::Command::Add(args) => cmd::add::run(&ctx, args).await,
+        args::Command::Branch(args) => cmd::branch::run(&ctx, args).await,
         args::Command::Bump(args) => cmd::bump::run(&ctx, args).await,
+        args::Command::Changelog(args) => cmd::changelog::run(&ctx, args).await,
         args::Command::Check(args) => cmd::check::run(&ctx, args).await,
         args::Command::Commit(args) => cmd::commit::run(&ctx, args).await,
         args::Command::Config(args) => cmd::config::run(&ctx, args).await,
         args::Command::Doctor(args) => cmd::doctor::run(&ctx, args).await,
+        args::Command::Fix(args) => cmd::fix::run(&ctx, args).await,
         args::Command::Init(args) => cmd::init::run(&ctx, args).await,
         args::Command::Push(args) => cmd::push::run(&ctx, args).await,
         args::Command::Tag(args) => cmd::tag::run(&ctx, args).await,

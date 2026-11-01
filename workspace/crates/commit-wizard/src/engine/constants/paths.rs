@@ -1,7 +1,10 @@
+//! Where config files live and how they are found, whichever of TOML, YAML or JSON they use.
+
 use crate::engine::{
     constants::{
-        CACHE_DIR_NAME, CONFIG_DIR_NAME, CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME,
-        PROJECT_CONFIG_FILE_NAME_HIDDEN, RULES_FILE_NAME, STATE_DIR_NAME,
+        CACHE_DIR_NAME, CONFIG_DIR_NAME, CONFIG_FILE_NAME, CONFIG_STEM, PROJECT_CONFIG_FILE_NAME,
+        PROJECT_CONFIG_FILE_NAME_HIDDEN, PROJECT_CONFIG_STEM, PROJECT_CONFIG_STEM_HIDDEN,
+        RULES_FILE_NAME, RULES_STEM, STATE_DIR_NAME,
     },
     error::{ErrorCode, Result},
 };
@@ -10,17 +13,53 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn resolve_repo_config_path(cwd: &Path) -> PathBuf {
-    let hidden = cwd.join(PROJECT_CONFIG_FILE_NAME_HIDDEN);
-    let visible = cwd.join(PROJECT_CONFIG_FILE_NAME);
+use crate::engine::config::ConfigFormat;
 
-    if hidden.exists() {
-        hidden
-    } else if visible.exists() {
-        visible
-    } else {
-        hidden
-    }
+/// Config files named `<stem>.<ext>` that exist in `dir`, preferred first.
+///
+/// Every supported format is considered, in the order TOML, YAML (`.yaml`,
+/// `.yml`), JSON. More than one result means the directory holds competing
+/// copies of the same config; callers use the first and may warn about the rest.
+pub fn config_files_in_dir(dir: &Path, stem: &str) -> Vec<PathBuf> {
+    ConfigFormat::ALL
+        .iter()
+        .flat_map(|format| format.extensions().iter())
+        .map(|extension| dir.join(format!("{stem}.{extension}")))
+        .filter(|path| path.is_file())
+        .collect()
+}
+
+/// Other project config files beside `chosen` that are being ignored.
+///
+/// A directory with both `.cwizard.toml` and `.cwizard.yaml` uses the first by
+/// precedence; the rest are returned so the caller can warn about them.
+pub fn competing_project_configs(chosen: &Path) -> Vec<PathBuf> {
+    let Some(dir) = chosen.parent() else {
+        return Vec::new();
+    };
+    project_config_files_in_dir(dir)
+        .into_iter()
+        .filter(|path| path != chosen)
+        .collect()
+}
+
+/// The config file named `<stem>.<ext>` in `dir`, in any supported format.
+pub fn find_config_file(dir: &Path, stem: &str) -> Option<PathBuf> {
+    config_files_in_dir(dir, stem).into_iter().next()
+}
+
+/// Project config files in `dir`: `.cwizard.*` first, then `cwizard.*`.
+pub fn project_config_files_in_dir(dir: &Path) -> Vec<PathBuf> {
+    let mut files = config_files_in_dir(dir, PROJECT_CONFIG_STEM_HIDDEN);
+    files.extend(config_files_in_dir(dir, PROJECT_CONFIG_STEM));
+    files
+}
+
+pub fn resolve_repo_config_path(cwd: &Path) -> PathBuf {
+    project_config_files_in_dir(cwd)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| cwd.join(PROJECT_CONFIG_FILE_NAME_HIDDEN))
 }
 
 pub fn resolve_new_repo_config_path(cwd: &Path, hidden: bool) -> PathBuf {
@@ -31,12 +70,17 @@ pub fn resolve_new_repo_config_path(cwd: &Path, hidden: bool) -> PathBuf {
     }
 }
 
+/// The global config: `config.toml`, `config.yaml`/`.yml` or `config.json` in
+/// the app config directory. When none exists, the TOML path is returned.
 pub fn resolve_global_config_path() -> Result<PathBuf> {
-    Ok(app_config_dir()?.join(CONFIG_FILE_NAME))
+    let dir = app_config_dir()?;
+    Ok(find_config_file(&dir, CONFIG_STEM).unwrap_or_else(|| dir.join(CONFIG_FILE_NAME)))
 }
 
+/// The global rules file, in any supported format.
 pub fn resolve_global_rules_path() -> Result<PathBuf> {
-    Ok(app_config_dir()?.join(RULES_FILE_NAME))
+    let dir = app_config_dir()?;
+    Ok(find_config_file(&dir, RULES_STEM).unwrap_or_else(|| dir.join(RULES_FILE_NAME)))
 }
 
 pub fn app_config_dir() -> Result<PathBuf> {
@@ -181,15 +225,5 @@ pub fn resolve_new_project_config_path(
 }
 
 fn find_project_config_in_dir(dir: &Path) -> Option<PathBuf> {
-    let hidden = dir.join(PROJECT_CONFIG_FILE_NAME_HIDDEN);
-    if hidden.exists() {
-        return Some(hidden);
-    }
-
-    let visible = dir.join(PROJECT_CONFIG_FILE_NAME);
-    if visible.exists() {
-        return Some(visible);
-    }
-
-    None
+    project_config_files_in_dir(dir).into_iter().next()
 }

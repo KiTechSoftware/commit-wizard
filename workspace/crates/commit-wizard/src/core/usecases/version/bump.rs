@@ -1,3 +1,5 @@
+//! `cw bump`: works out the next semantic version from the commits since the last tag.
+
 use crate::{
     core::{Context, CoreResult},
     engine::{
