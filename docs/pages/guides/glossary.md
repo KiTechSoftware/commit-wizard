@@ -17,5 +17,5 @@
 | **Project config** | The settings file in a repository |
 | **Global config** | The settings file for your user account, edited with `cw config -g` |
 | **Registry** | A shared Git repository of config sections that many projects can use. See the [registry guide](registry-system.md) |
-| **Reserved setting** | A section that is accepted but not read by any command yet: `[pr]`, `[release]`, `[hooks]`, `[ai]` |
+| **Reserved setting** | A section that is accepted but not read by any command yet: `[pr]` (and `ai.commands.changelog` and `release_prepare`) |
 | **Error id** | The `E`-number on an error. See [errors and exit codes](exit-codes.md) |

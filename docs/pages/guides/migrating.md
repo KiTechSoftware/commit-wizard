@@ -40,4 +40,4 @@ The old codes `1`-`8` were replaced. See [errors and exit codes](exit-codes.md);
 
 ## Hooks, AI and pull-request settings
 
-`[pr]`, `[release]`, `[hooks]` and `[ai]` are reserved: accepted, not read.
+`[pr]` is reserved: accepted, not read.

@@ -49,7 +49,7 @@ The id is `E` followed by the kind's number and a counter, as in `E` + `4` + `00
 | Process | `E10xxx` | `E10001` process failure |
 | Runtime | `E11xxx` | `E11001` runtime failure |
 
-The `[hooks]` and `[ai]` settings are reserved, so the Hook and AI errors are not raised by any command yet.
+The Hook errors come from `cw hooks`, and the AI errors from `cw commit --ai`.
 
 ## Using them in a script
 

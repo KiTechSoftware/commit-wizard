@@ -463,6 +463,9 @@ pub struct AiConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub provider: Option<String>,
+    /// Model name for providers that need one (Ollama).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commands: Option<AiCommandsConfig>,
 }

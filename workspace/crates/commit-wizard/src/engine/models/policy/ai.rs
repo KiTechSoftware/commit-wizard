@@ -1,4 +1,4 @@
-//! Policy model for the reserved `[ai]` settings (parsed, not yet used by a command).
+//! Policy model for the `[ai]` settings (used by `cw commit --ai`).
 
 use crate::engine::models::{policy::enforcement::AiProvider, runtime::ResolvedConfig};
 
@@ -13,6 +13,7 @@ pub struct AiCommandsModel {
 pub struct AiModel {
     pub enabled: bool,
     pub provider: AiProvider,
+    pub model: Option<String>,
     pub commands: AiCommandsModel,
 }
 
@@ -21,6 +22,7 @@ impl Default for AiModel {
         Self {
             enabled: false,
             provider: AiProvider::Copilot,
+            model: None,
             commands: AiCommandsModel {
                 commit: false,
                 changelog: false,
@@ -37,6 +39,7 @@ impl AiModel {
         Self {
             enabled: base.ai_enabled(),
             provider: base.ai_provider(),
+            model: base.ai_model(),
             commands: AiCommandsModel {
                 commit: base.ai_commit_enabled(),
                 changelog: base.ai_changelog_enabled(),

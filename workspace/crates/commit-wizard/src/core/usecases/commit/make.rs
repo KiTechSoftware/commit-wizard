@@ -34,6 +34,8 @@ pub struct Options {
     pub stage_all: bool,
     /// Stage changes to tracked files only (`-a`).
     pub stage_tracked: bool,
+    /// Ask the configured AI for the message; flags still win over what it proposes.
+    pub ai: bool,
 }
 
 pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
@@ -49,10 +51,32 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
         ticket,
         stage_all,
         stage_tracked,
+        ai,
     } = options;
     let ui = ctx.ui();
     let start = Instant::now();
     let policy = &ctx.policy().commit;
+
+    // The AI fills in what the flags left open; a person at a terminal reviews it
+    // (and may decline, which falls back to the usual questions).
+    let (mut commit_type, mut scope, mut message) = (commit_type, scope, message);
+    let (mut breaking, mut breaking_message, mut body) = (breaking, breaking_message, body);
+    let mut ai_reviewed = false;
+    if ai && let Some(s) = super::ai::suggest(ctx, stage_all, stage_tracked)? {
+        ai_reviewed = ctx.is_interactive() && !ctx.auto_yes();
+        commit_type.get_or_insert(s.commit_type);
+        if scope.is_none() {
+            scope = s.scope;
+        }
+        message.get_or_insert(s.summary);
+        if body.is_none() {
+            body = s.body;
+        }
+        if !breaking && s.breaking {
+            breaking = true;
+            breaking_message = breaking_message.or(s.breaking_message);
+        }
+    }
 
     let non_interactive = !ctx.is_interactive() || (commit_type.is_some() && message.is_some());
 
@@ -380,7 +404,7 @@ pub fn run(ctx: &Context, options: Options) -> CoreResult<()> {
         return ui.print_with_meta(&content, Some(&meta), true);
     }
 
-    if !non_interactive && !ui.confirm("Create this commit?", true)? {
+    if (!non_interactive || ai_reviewed) && !ui.confirm("Create this commit?", true)? {
         ui.logger().warn(&format!("{} Commit cancelled", ERROR));
         return Ok(());
     }

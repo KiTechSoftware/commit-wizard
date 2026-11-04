@@ -5,6 +5,7 @@
 //!
 //! ## Submodules
 //!
+//! - [`ai`]: Prompts for AI-written commit messages, and reading the answer
 //! - [`branch`]: Branch names and which local branches can be pruned
 //! - [`changelog`]: Changelog grouping, rendering and merging
 //! - [`commit`]: Commit message validation and creation
@@ -12,6 +13,7 @@
 //! - [`usage`]: Usage tracking and reporting
 //! - [`versioning`]: Version bumping and tag management
 
+pub mod ai;
 pub mod branch;
 pub mod changelog;
 pub mod commit;

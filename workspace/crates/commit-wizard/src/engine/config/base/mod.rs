@@ -709,6 +709,13 @@ impl BaseConfig {
             .unwrap_or(defaults::AI_PROVIDER)
     }
 
+    pub fn ai_model(&self) -> Option<String> {
+        self.ai
+            .as_ref()
+            .and_then(|a| a.model.clone())
+            .filter(|m| !m.trim().is_empty())
+    }
+
     pub fn ai_commit_enabled(&self) -> bool {
         self.ai
             .as_ref()

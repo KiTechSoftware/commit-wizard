@@ -11,5 +11,6 @@
 //! This layer is kept separate from business logic, allowing for easy testing
 //! and mocking of external dependencies.
 
+pub mod ai;
 pub mod git;
 pub mod ui;

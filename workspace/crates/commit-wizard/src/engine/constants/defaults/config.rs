@@ -365,6 +365,7 @@ pub fn default_ai_config() -> AiConfig {
     AiConfig {
         enabled: Some(AI_ENABLED),
         provider: Some(AI_PROVIDER.to_string()),
+        model: None,
         commands: Some(default_ai_commands_config()),
     }
 }

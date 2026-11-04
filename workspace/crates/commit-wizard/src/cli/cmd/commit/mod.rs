@@ -43,6 +43,9 @@ pub struct Args {
     /// Stage changes to tracked files first, like `git commit -a`
     #[arg(long, short = 'a')]
     pub tracked: bool,
+    /// Have the configured AI write the message from the changes (needs [ai] enabled)
+    #[arg(long)]
+    pub ai: bool,
 }
 
 pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
@@ -60,6 +63,7 @@ pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
             ticket: args.ticket,
             stage_all: args.all,
             stage_tracked: args.tracked,
+            ai: args.ai,
         },
     )
 }

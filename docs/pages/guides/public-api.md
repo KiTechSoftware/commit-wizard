@@ -2,7 +2,7 @@
 
 This page documents the configuration schema. Every field listed is accepted and validated, and a misspelled key inside a known table is an error.
 
-Most sections drive behaviour today. Four are **reserved**: `[pr]`, `[release]`, `[hooks]` and `[ai]` are accepted so that configs written now keep working, but no command reads them yet. They are marked where they appear.
+Most sections drive behaviour today. One is **reserved**: `[pr]` is accepted so that configs written now keep working, but no command reads it yet. It is marked where it appears.
 
 ## Top-level structure
 
@@ -650,9 +650,9 @@ order = 10
 
 ---
 
-## `[release]` — Release workflow (reserved)
+## `[release]` — Release workflow
 
-**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. To cut a release today, use [`cw tag`](../commands/tag.md) and [`cw changelog`](../commands/changelog.md).
+Read by [`cw release`](../commands/release.md), and only when `enabled = true`. `hotfix_pattern` is accepted but not used yet.
 
 ### `release.enabled`
 
@@ -724,15 +724,15 @@ By default a project config replaces the global one: the global config only appl
 inherit = true
 ```
 
-## `[hooks]` — Git hooks (reserved)
+## `[hooks]` — Git hooks
 
-**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `pre_commit`, `commit_msg` and `pre_push`, each a `bool` defaulting to `false`.
+The keys are `pre_commit`, `commit_msg` and `pre_push`, each a `bool` defaulting to `false`. [`cw hooks install`](../commands/hooks.md) installs the `commit_msg` and `pre_push` hooks that are enabled here (both when none are). `pre_commit` has no hook yet.
 
 ---
 
-## `[ai]` — AI assistance (reserved)
+## `[ai]` — AI assistance
 
-**Reserved.** This section is accepted and validated, so a config written today keeps working, but no command reads it yet. The keys are `enabled` (`bool`, default `false`), `provider` (a string such as `"copilot"`), and an `[ai.commands]` table of `bool` switches named `commit`, `changelog` and `release_prepare`.
+The keys are `enabled` (`bool`, default `false`), `provider` (`"copilot"` or `"ollama"`), `model` (the Ollama model, default `llama3.2`), and an `[ai.commands]` table of `bool` switches named `commit`, `changelog` and `release_prepare`. Only `commit` is read today, by [`cw commit --ai`](../commands/commit.md#ai-written-messages); the others are reserved. The provider's CLI (`copilot` or `ollama`) must be installed and on your `PATH`.
 
 ---
 

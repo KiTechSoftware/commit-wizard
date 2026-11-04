@@ -110,6 +110,35 @@ impl Git {
         })
     }
 
+    /// The changes a commit would contain: the staged diff, or (when `cw commit` is
+    /// asked to stage first) everything it is about to stage.
+    pub fn diff_for_commit(&self, stage_all: bool, stage_tracked: bool) -> Result<String, Error> {
+        let has_head = self
+            .run(["rev-parse", "--verify", "-q", "HEAD"])
+            .is_some_and(|o| o.status.success());
+        let output = if (stage_all || stage_tracked) && has_head {
+            self.run(["diff", "HEAD"])
+        } else {
+            self.run(["diff", "--staged"])
+        }
+        .ok_or_else(|| {
+            ErrorCode::ProcessFailure
+                .error()
+                .with_context("command", "git diff")
+                .with_context("cwd", self.cwd.display().to_string())
+        })?;
+        let mut diff = String::from_utf8_lossy(&output.stdout).to_string();
+
+        if stage_all
+            && let Some(untracked) = self.run(["ls-files", "--others", "--exclude-standard"])
+        {
+            for path in String::from_utf8_lossy(&untracked.stdout).lines() {
+                diff.push_str(&format!("\nnew untracked file: {path}\n"));
+            }
+        }
+        Ok(diff)
+    }
+
     pub fn commit(&self, message: &str, allow_empty: bool) -> Result<(), Error> {
         let mut cmd = Command::new("git");
         cmd.current_dir(&self.cwd);

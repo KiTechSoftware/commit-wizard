@@ -77,9 +77,25 @@ cw commit --dry-run -t feat -m "my new feature"
 | `--ticket <TICKET>` | `-T` | Ticket reference, written at the start of the subject; see [Tickets](#tickets) |
 | `--tracked` | `-a` | Stage changes to tracked files first, like `git commit -a` (new files are left out) |
 | `--all` | `-A` | Stage every change first, new files included. Cannot be combined with `-a` |
+| `--ai` | | Have the configured AI write the message; see [AI-written messages](#ai-written-messages) |
 | `--allow-empty` | | Allow committing with nothing staged |
 
 Staging happens just before the commit is created, so cancelling at the final question, or using `--dry-run`, stages nothing.
+
+## AI-written messages
+
+`cw commit --ai` sends the pending changes (the staged diff, capped at about 20,000 characters) to your AI tool and uses the Conventional Commit it returns. It needs:
+
+```toml
+[ai]
+enabled = true
+provider = "copilot"   # or "ollama" (set `model`, default llama3.2)
+
+[ai.commands]
+commit = true
+```
+
+and the provider's CLI (`copilot` or `ollama`) installed and signed in. Flags you give still win: `cw commit --ai -t fix` keeps `fix`. On a terminal you see the proposed message and can decline it, which falls back to the usual questions; with `--yes` or in CI it is used as is. An answer that is not a valid message under your rules is an error, and nothing is committed. Note that the diff leaves your machine for the provider.
 
 ## Commit message anatomy
 

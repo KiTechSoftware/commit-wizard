@@ -75,6 +75,7 @@ pub fn decide_bump(breaking_keywords: &[String], minor: &[String], patch: &[Stri
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AiProvider {
     Copilot,
+    Ollama,
 }
 
 impl AiProvider {
@@ -82,6 +83,7 @@ impl AiProvider {
     pub fn from_str(provider: &str) -> AiProvider {
         match provider.to_lowercase().as_str() {
             "copilot" => AiProvider::Copilot,
+            "ollama" => AiProvider::Ollama,
             _ => AiProvider::Copilot, // default to Copilot if unknown
         }
     }
@@ -89,6 +91,7 @@ impl AiProvider {
     pub fn as_str(&self) -> &str {
         match self {
             AiProvider::Copilot => "copilot",
+            AiProvider::Ollama => "ollama",
         }
     }
 }

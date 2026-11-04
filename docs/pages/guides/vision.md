@@ -20,4 +20,4 @@ Writing and checking Conventional Commits, repairing history, working out the ne
 
 ## Not yet built
 
-`[pr]` and `[ai]` are reserved settings. They are accepted so configs written today keep working, and no command reads them yet. Generating messages with AI is the intended use.
+`[pr]` is a reserved setting: it is accepted so configs written today keep working, and no command reads it yet. AI is used for commit messages only; changelog and release-notes generation are not built.
