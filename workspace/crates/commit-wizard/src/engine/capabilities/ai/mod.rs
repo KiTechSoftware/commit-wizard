@@ -44,21 +44,7 @@ pub fn commit_request(diff: &str, policy: &CommitModel) -> GenerateRequest {
         format!("The summary line must be at most {} characters, in the imperative mood, with no trailing period.", policy.subject_max_length),
         "Do not add emoji.".to_string(),
     ];
-    match policy.scope_requirement {
-        ScopeRequirement::Disabled => rules.push("Do not use a scope.".to_string()),
-        _ => {
-            if let Some(scopes) = policy
-                .allowed_scopes
-                .as_ref()
-                .filter(|_| policy.restrict_scopes_to_defined)
-            {
-                rules.push(format!(
-                    "If you use a scope it must be one of: {}.",
-                    scopes.join(", ")
-                ));
-            }
-        }
-    }
+    rules.extend(scope_rules(policy));
     rules.push(
         "For a breaking change, put `!` before the colon and add a `BREAKING CHANGE: <description>` line in the body.".to_string(),
     );
@@ -69,6 +55,33 @@ pub fn commit_request(diff: &str, policy: &CommitModel) -> GenerateRequest {
     ))
     .with_persona("You write precise, concise Git commit messages.")
     .with_instructions(rules.join("\n"))
+}
+
+/// What the model is told about scopes, following the project's scope settings.
+fn scope_rules(policy: &CommitModel) -> Vec<String> {
+    if policy.scope_requirement == ScopeRequirement::Disabled {
+        return vec!["Do not use a scope: write `type: summary`.".to_string()];
+    }
+    let mut rules = Vec::new();
+    match (&policy.allowed_scopes, policy.restrict_scopes_to_defined) {
+        (Some(scopes), true) => rules.push(format!(
+            "The scope must be exactly one of: {}. Never invent another.",
+            scopes.join(", ")
+        )),
+        (Some(scopes), false) => rules.push(format!(
+            "Prefer one of these scopes when it fits: {}.",
+            scopes.join(", ")
+        )),
+        (None, _) => rules.push(
+            "A scope names the module or area of the project that changed, such as `api` or `parser`. It is never a file name, a path or a file extension.".to_string(),
+        ),
+    }
+    if policy.scope_requirement == ScopeRequirement::Required {
+        rules.push("A scope is required.".to_string());
+    } else {
+        rules.push("Leave the scope out when no single area clearly fits.".to_string());
+    }
+    rules
 }
 
 /// Reads the model's answer. `None` when it is not a Conventional Commit the
@@ -100,6 +113,14 @@ pub fn parse_suggestion(text: &str, policy: &CommitModel) -> Option<Suggestion> 
         .filter(|s| !s.is_empty())
         .filter(|_| policy.scope_requirement != ScopeRequirement::Disabled)
         .filter(|s| !policy.restrict_scopes_to_defined || policy.allows_scope(s));
+    // A path or file name is not an area of the project, unless the config lists it.
+    let scope = scope.filter(|s| {
+        let listed = policy
+            .allowed_scopes
+            .as_ref()
+            .is_some_and(|scopes| scopes.contains(s));
+        listed || !(s.contains('/') || s.contains('\\') || s.contains('.'))
+    });
 
     let summary = caps["summary"].trim().trim_end_matches('.').to_string();
     if summary.is_empty() {
@@ -185,6 +206,66 @@ mod tests {
         let diff = "x".repeat(MAX_DIFF_CHARS + 50);
         assert!(clip_diff(&diff).ends_with("[diff truncated]"));
         assert_eq!(clip_diff("small"), "small");
+    }
+
+    fn rules(policy: &CommitModel) -> String {
+        commit_request("diff", policy).instructions.unwrap()
+    }
+
+    #[test]
+    fn scopes_disabled_tells_the_model_to_omit_them() {
+        let mut p = policy();
+        p.scope_requirement = ScopeRequirement::Disabled;
+        assert!(rules(&p).contains("Do not use a scope"));
+    }
+
+    #[test]
+    fn restricted_scopes_are_listed_as_the_only_choices() {
+        let mut p = policy();
+        p.scope_requirement = ScopeRequirement::Required;
+        p.restrict_scopes_to_defined = true;
+        p.allowed_scopes = Some(vec!["api".into(), "cli".into()]);
+        let text = rules(&p);
+        assert!(text.contains("exactly one of: api, cli"), "{text}");
+        assert!(text.contains("A scope is required"), "{text}");
+    }
+
+    #[test]
+    fn free_scopes_are_never_file_names() {
+        let mut p = policy();
+        p.scope_requirement = ScopeRequirement::Optional;
+        p.allowed_scopes = None;
+        let text = rules(&p);
+        assert!(text.contains("never a file name"), "{text}");
+        assert!(text.contains("Leave the scope out"), "{text}");
+    }
+
+    #[test]
+    fn file_like_scopes_are_dropped_unless_listed() {
+        let mut p = policy();
+        p.allowed_scopes = None;
+        for scope in ["src/greet.py", "greet.py", "a\\b"] {
+            let s = parse_suggestion(&format!("feat({scope}): x"), &p).unwrap();
+            assert_eq!(s.scope, None, "{scope}");
+        }
+        p.allowed_scopes = Some(vec!["docs/api".into()]);
+        let s = parse_suggestion("feat(docs/api): x", &p).unwrap();
+        assert_eq!(s.scope.as_deref(), Some("docs/api"));
+    }
+
+    #[test]
+    fn a_scope_outside_the_restricted_list_is_dropped() {
+        let mut p = policy();
+        p.restrict_scopes_to_defined = true;
+        p.allowed_scopes = Some(vec!["api".into()]);
+        assert_eq!(parse_suggestion("feat(other): x", &p).unwrap().scope, None);
+        assert_eq!(
+            parse_suggestion("feat(api): x", &p)
+                .unwrap()
+                .scope
+                .as_deref(),
+            Some("api")
+        );
     }
 
     #[test]
