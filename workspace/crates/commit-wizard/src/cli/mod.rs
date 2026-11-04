@@ -76,6 +76,17 @@ async fn async_run() -> ExitCode {
         .with_writer(std::io::stderr)
         .init();
 
+    // Completions need no repository or configuration.
+    if let args::Command::Completions(args) = cli.command {
+        return match cmd::completions::run_standalone(args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                report_error(&err);
+                exit_code(&err)
+            }
+        };
+    }
+
     let ctx = match build_app_context(cli.global.into()) {
         Ok(ctx) => ctx,
         Err(err) => {
@@ -97,6 +108,9 @@ async fn async_run() -> ExitCode {
         args::Command::Config(args) => cmd::config::run(&ctx, args).await,
         args::Command::Doctor(args) => cmd::doctor::run(&ctx, args).await,
         args::Command::Fix(args) => cmd::fix::run(&ctx, args).await,
+        args::Command::Completions(_) => unreachable!("handled before the context is built"),
+        args::Command::Hooks(args) => cmd::hooks::run(&ctx, args).await,
+        args::Command::Release(args) => cmd::release::run(&ctx, args).await,
         args::Command::Init(args) => cmd::init::run(&ctx, args).await,
         args::Command::Push(args) => cmd::push::run(&ctx, args).await,
         args::Command::Tag(args) => cmd::tag::run(&ctx, args).await,

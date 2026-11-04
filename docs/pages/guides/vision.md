@@ -20,4 +20,4 @@ Writing and checking Conventional Commits, repairing history, working out the ne
 
 ## Not yet built
 
-`[pr]`, `[release]`, `[hooks]` and `[ai]` are reserved settings. They are accepted so configs written today keep working, and no command reads them yet. Installing git hooks and generating messages with AI are the intended uses.
+`[pr]` and `[ai]` are reserved settings. They are accepted so configs written today keep working, and no command reads them yet. Generating messages with AI is the intended use.

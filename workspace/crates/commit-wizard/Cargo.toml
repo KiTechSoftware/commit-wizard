@@ -24,6 +24,7 @@ cliai.workspace = true
 
 chrono.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 dialoguer.workspace = true
 dirs.workspace = true
 git2.workspace = true

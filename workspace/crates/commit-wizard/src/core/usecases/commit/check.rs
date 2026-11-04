@@ -18,6 +18,7 @@ pub fn run(
     from: Option<String>,
     to: Option<String>,
     full_commit_hash: bool,
+    message_file: Option<String>,
 ) -> CoreResult<()> {
     let ui = ctx.ui();
     let start = Instant::now();
@@ -40,7 +41,30 @@ pub fn run(
 
     // Fetch commits in the specified range
     let to_ref = to.as_deref().unwrap_or("HEAD").to_string();
-    let mut raw_commits = ctx.git().list_commits(from.as_deref(), &to_ref)?;
+    let mut raw_commits = match &message_file {
+        Some(path) => {
+            let text = std::fs::read_to_string(path).map_err(|err| {
+                ErrorCode::IoFailure
+                    .error()
+                    .with_context("path", path.clone())
+                    .with_context("error", err.to_string())
+            })?;
+            // Git drops comment lines from the message it records, so they are not checked.
+            let message = text
+                .lines()
+                .filter(|line| !line.starts_with('#'))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_string();
+            vec![CommitSummary {
+                hash: "message".to_string(),
+                summary: message.lines().next().unwrap_or("").to_string(),
+                full_message: Some(message),
+            }]
+        }
+        None => ctx.git().list_commits(from.as_deref(), &to_ref)?,
+    };
 
     if let Some(n) = tail {
         let n = n as usize;

@@ -85,6 +85,31 @@ impl Git {
         })
     }
 
+    /// The directory Git runs hooks from (honours `core.hooksPath` and worktrees).
+    pub fn hooks_dir(&self) -> Result<PathBuf, Error> {
+        let output = self
+            .run(["rev-parse", "--git-path", "hooks"])
+            .ok_or_else(|| {
+                ErrorCode::ProcessFailure
+                    .error()
+                    .with_context("command", "git rev-parse --git-path hooks")
+                    .with_context("cwd", self.cwd.display().to_string())
+            })?;
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !output.status.success() || stdout.is_empty() {
+            return Err(ErrorCode::ProcessFailure
+                .error()
+                .with_context("command", "git rev-parse --git-path hooks")
+                .with_context("cwd", self.cwd.display().to_string()));
+        }
+        let path = PathBuf::from(stdout);
+        Ok(if path.is_absolute() {
+            path
+        } else {
+            self.cwd.join(path)
+        })
+    }
+
     pub fn commit(&self, message: &str, allow_empty: bool) -> Result<(), Error> {
         let mut cmd = Command::new("git");
         cmd.current_dir(&self.cwd);
@@ -707,12 +732,14 @@ impl Git {
     }
 
     pub fn merge(&self, branch: &str) -> Result<(), Error> {
-        let output = self.run_dynamic(["merge", branch]).ok_or_else(|| {
-            ErrorCode::ProcessFailure
-                .error()
-                .with_context("command", "git merge <branch>")
-                .with_context("cwd", self.cwd.display().to_string())
-        })?;
+        let output = self
+            .run_dynamic(["merge", "--no-edit", branch])
+            .ok_or_else(|| {
+                ErrorCode::ProcessFailure
+                    .error()
+                    .with_context("command", "git merge <branch>")
+                    .with_context("cwd", self.cwd.display().to_string())
+            })?;
         self.ensure_success("git merge <branch>", output)
     }
 

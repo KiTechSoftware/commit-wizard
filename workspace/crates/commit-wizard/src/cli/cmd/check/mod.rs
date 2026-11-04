@@ -25,8 +25,19 @@ pub struct Args {
     /// Full commit hash
     #[arg(long, alias = "full-hash", short = 'H')]
     pub full_commit_hash: bool,
+
+    /// Validate the single commit message in this file (for a commit-msg hook)
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["tail", "from", "to"])]
+    pub message_file: Option<String>,
 }
 
 pub async fn run(ctx: &Context, args: Args) -> CliResult<()> {
-    commit::check::run(ctx, args.tail, args.from, args.to, args.full_commit_hash)
+    commit::check::run(
+        ctx,
+        args.tail,
+        args.from,
+        args.to,
+        args.full_commit_hash,
+        args.message_file,
+    )
 }

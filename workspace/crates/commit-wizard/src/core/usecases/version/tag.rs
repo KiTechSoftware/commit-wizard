@@ -28,7 +28,7 @@ struct Choices {
     message: Option<String>,
 }
 
-fn parse_version(text: &str, prefix: &str) -> CoreResult<Version> {
+pub(crate) fn parse_version(text: &str, prefix: &str) -> CoreResult<Version> {
     Version::parse(text.trim(), prefix)
         .or_else(|| Version::parse(text.trim(), ""))
         .ok_or_else(|| {
@@ -39,7 +39,7 @@ fn parse_version(text: &str, prefix: &str) -> CoreResult<Version> {
 }
 
 /// The version the commits since the last tag call for.
-fn next_version(
+pub(crate) fn next_version(
     git: &crate::infra::git::Git,
     versioning_model: &VersioningModel,
     commit_model: &CommitModel,

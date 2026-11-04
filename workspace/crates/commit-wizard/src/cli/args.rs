@@ -84,16 +84,22 @@ pub enum Command {
     Check(cmd::check::Args),
     /// Guide the user through writing a Conventional Commit message
     Commit(cmd::commit::Args),
+    /// Print a shell completion script
+    Completions(cmd::completions::Args),
     /// View or edit the current project, global or selected config
     Config(cmd::config::Args),
     /// Diagnose and fix common issues
     Doctor(cmd::doctor::Args),
     /// Correct commit messages that break the project's rules
     Fix(cmd::fix::Args),
+    /// Install, remove and inspect Git hooks
+    Hooks(cmd::hooks::Args),
     /// Initialize a project config (prefers .cwizard.toml; supports cwizard.toml)
     Init(cmd::init::Args),
     /// Push commits to a remote repository
     Push(cmd::push::Args),
+    /// Start and finish a release branch
+    Release(cmd::release::Args),
     /// Create a new Git tag (Semantic Versioning) based on Conventional Commits
     Tag(cmd::tag::Args),
 }

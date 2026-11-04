@@ -22,11 +22,14 @@ nav:
     - changelog: commands/changelog.md
     - check: commands/check.md
     - commit: commands/commit.md
+    - completions: commands/completions.md
     - config: commands/config.md
     - doctor: commands/doctor.md
     - fix: commands/fix.md
+    - hooks: commands/hooks.md
     - init: commands/init.md
     - push: commands/push.md
+    - release: commands/release.md
     - tag: commands/tag.md
   - Guides:
     - Getting Started: guides/getting-started.md

@@ -5,5 +5,7 @@ pub mod changelog;
 pub mod commit;
 pub mod configs;
 pub mod doctor;
+pub mod hooks;
+pub mod release;
 pub mod usage;
 pub mod version;

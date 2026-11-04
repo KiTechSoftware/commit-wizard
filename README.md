@@ -57,6 +57,9 @@ cw changelog       # write CHANGELOG.md from the history
 | `cw tag` | Create (and optionally sign and push) the next version tag, release candidates included |
 | `cw changelog` | Generate or update a changelog from the tag history, in Markdown or JSON |
 | `cw push` | Push with your branch and commit policies applied |
+| `cw hooks` | Install, remove and inspect the Git hooks that run `cw check` |
+| `cw release` | Start and finish a release branch: merge, tag, push, merge back |
+| `cw completions` | Print a shell completion script |
 | `cw init` | Create a project or user config through a guided wizard |
 | `cw config` | Show, edit, list and explain configuration, including where each value comes from |
 | `cw doctor` | Diagnose configuration and environment problems |
